@@ -173,21 +173,21 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
           {/* Business Name */}
           <div className="flex-1 min-w-[200px] border-r border-border">
             <div className="flex items-center gap-2 px-2 py-1.5">
-              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+              <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               {editingCell?.id === contact.id && editingCell?.field === "business_name" ? (
                 <Input
                   ref={inputRef}
                   defaultValue={contact.business_name || ""}
                   onBlur={(e) => handleBlur(contact.id, "business_name", e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, contact.id, "business_name", e.currentTarget.value)}
-                  className="h-7 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary"
+                  className="h-6 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary text-sm"
                 />
               ) : (
                 <span
-                  className="cursor-text flex-1 min-h-[28px] flex items-center hover:bg-muted/50 rounded px-1"
+                  className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm"
                   onClick={() => setEditingCell({ id: contact.id, field: "business_name" })}
                 >
-                  {contact.business_name || <span className="text-muted-foreground/50">Empty</span>}
+                  {contact.business_name || <span className="text-muted-foreground/50 text-sm">Empty</span>}
                 </span>
               )}
             </div>
@@ -201,14 +201,14 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 defaultValue={contact.email || ""}
                 onBlur={(e) => handleBlur(contact.id, "email", e.target.value)}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "email", e.currentTarget.value)}
-                className="h-full px-3 py-1.5 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none"
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1.5 min-h-[36px] flex items-center hover:bg-muted/50"
+                className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm"
                 onClick={() => setEditingCell({ id: contact.id, field: "email" })}
               >
-                {contact.email || <span className="text-muted-foreground/50">Empty</span>}
+                {contact.email || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
             )}
           </div>
@@ -221,14 +221,14 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 defaultValue={contact.mobile_number || ""}
                 onBlur={(e) => handleBlur(contact.id, "mobile_number", e.target.value)}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "mobile_number", e.currentTarget.value)}
-                className="h-full px-3 py-1.5 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none"
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1.5 min-h-[36px] flex items-center hover:bg-muted/50"
+                className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm"
                 onClick={() => setEditingCell({ id: contact.id, field: "mobile_number" })}
               >
-                {contact.mobile_number || <span className="text-muted-foreground/50">Empty</span>}
+                {contact.mobile_number || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
             )}
           </div>
@@ -239,17 +239,17 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               value={contact.status}
               onValueChange={(value) => handleUpdate(contact.id, "status", value)}
             >
-              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary">
+              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
                 <SelectValue>
-                  <span className={statusColors[contact.status] || ""}>
+                  <span className={`${statusColors[contact.status] || ""} text-sm`}>
                     {contact.status}
                   </span>
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="Already Called">Already Called</SelectItem>
-                <SelectItem value="Busy">Busy</SelectItem>
+                <SelectItem value="Pending" className="text-sm">Pending</SelectItem>
+                <SelectItem value="Already Called" className="text-sm">Already Called</SelectItem>
+                <SelectItem value="Busy" className="text-sm">Busy</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -262,21 +262,21 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 defaultValue={contact.notes || ""}
                 onBlur={(e) => handleBlur(contact.id, "notes", e.target.value)}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "notes", e.currentTarget.value)}
-                className="h-full px-3 py-1.5 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none"
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1.5 min-h-[36px] flex items-center flex-1 hover:bg-muted/50"
+                className="cursor-text px-3 py-1 min-h-[32px] flex items-center flex-1 hover:bg-muted/50 text-sm"
                 onClick={() => setEditingCell({ id: contact.id, field: "notes" })}
               >
-                {contact.notes || <span className="text-muted-foreground/50">Empty</span>}
+                {contact.notes || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
             )}
             <button
               onClick={() => handleDelete(contact.id)}
-              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-destructive/10 rounded transition-opacity"
+              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity"
             >
-              <Trash2 className="w-4 h-4 text-destructive" />
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
             </button>
           </div>
         </div>
