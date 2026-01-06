@@ -139,7 +139,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
       .insert({
         category_id: categoryId,
         business_name: "",
-        status: "Pending",
+        status: "Lead",
       })
       .select()
       .single();
@@ -220,10 +220,36 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   };
 
   const statusColors: Record<string, string> = {
-    "Already Called": "text-green-400",
-    Pending: "text-yellow-400",
-    Busy: "text-red-400",
+    Lead: "bg-slate-500 text-white",
+    Contacted: "bg-blue-500 text-white",
+    Rejected: "bg-red-500 text-white",
+    "Demo Stage": "bg-purple-500 text-white",
+    "Decision Pending": "bg-orange-500 text-white",
+    "Closed Won": "bg-green-500 text-white",
+    "Closed Lost": "bg-gray-600 text-white",
+    Completed: "bg-emerald-600 text-white",
   };
+
+  // Priority order for sorting (higher number = higher priority = shows at top)
+  const statusPriority: Record<string, number> = {
+    Lead: 1,
+    Rejected: 2,
+    "Closed Lost": 3,
+    Contacted: 4,
+    "Decision Pending": 5,
+    "Demo Stage": 6,
+    "Closed Won": 7,
+    Completed: 8,
+  };
+
+  // Separate and sort contacts
+  const activeContacts = contacts
+    .filter((c) => c.status !== "Completed")
+    .sort((a, b) => (statusPriority[b.status] || 0) - (statusPriority[a.status] || 0));
+
+  const completedContacts = contacts
+    .filter((c) => c.status === "Completed")
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   const ResizeHandle = ({ columnKey }: { columnKey: keyof ColumnWidths }) => (
     <div
@@ -290,8 +316,8 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
         </div>
       </div>
 
-      {/* Rows */}
-      {contacts.map((contact) => (
+      {/* Active Rows */}
+      {activeContacts.map((contact) => (
         <div
           key={contact.id}
           className="flex border-b border-border hover:bg-muted/30 group"
@@ -480,15 +506,20 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             >
               <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
                 <SelectValue>
-                  <span className={`${statusColors[contact.status] || ""} text-sm`}>
+                  <span className={`${statusColors[contact.status] || "bg-gray-400 text-white"} px-2 py-0.5 rounded text-xs font-medium`}>
                     {contact.status}
                   </span>
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Pending" className="text-sm">Pending</SelectItem>
-                <SelectItem value="Already Called" className="text-sm">Already Called</SelectItem>
-                <SelectItem value="Busy" className="text-sm">Busy</SelectItem>
+                <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
+                <SelectItem value="Contacted" className="text-sm">Contacted</SelectItem>
+                <SelectItem value="Rejected" className="text-sm">Rejected</SelectItem>
+                <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
+                <SelectItem value="Decision Pending" className="text-sm">Decision Pending</SelectItem>
+                <SelectItem value="Closed Won" className="text-sm">Closed Won</SelectItem>
+                <SelectItem value="Closed Lost" className="text-sm">Closed Lost</SelectItem>
+                <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -533,6 +564,145 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
         <Plus className="w-4 h-4" />
         <span>New</span>
       </button>
+
+      {/* Completed Section */}
+      {completedContacts.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-3 px-3 text-emerald-600">Completed ({completedContacts.length})</h3>
+          <div className="border border-border rounded-lg">
+            {/* Completed Header */}
+            <div className="flex border-b border-border text-sm text-muted-foreground bg-emerald-50/50 dark:bg-emerald-950/20">
+              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.business_name }}>
+                Business Name
+              </div>
+              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.link }}>
+                Link
+              </div>
+              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.email }}>
+                Email
+              </div>
+              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.mobile }}>
+                Mobile
+              </div>
+              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.status }}>
+                Status
+              </div>
+              <div className="px-3 py-2 font-medium flex-1 min-w-[150px]" style={{ minWidth: columnWidths.notes }}>
+                Notes
+              </div>
+            </div>
+
+            {/* Completed Rows */}
+            {completedContacts.map((contact) => (
+              <div
+                key={contact.id}
+                className="flex border-b border-border hover:bg-muted/30 group last:border-b-0"
+              >
+                {/* Business Name */}
+                <div className="border-r border-border shrink-0" style={{ width: columnWidths.business_name }}>
+                  <div className="flex items-center gap-2 px-2 py-1.5">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">{contact.business_name || "—"}</span>
+                  </div>
+                </div>
+
+                {/* Link */}
+                <div className="border-r border-border shrink-0" style={{ width: columnWidths.link }}>
+                  <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
+                    {contact.link ? (
+                      <a
+                        href={contact.link.startsWith("http") ? contact.link : `https://${contact.link}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline truncate"
+                      >
+                        {contact.link}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="border-r border-border shrink-0" style={{ width: columnWidths.email }}>
+                  <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
+                    {contact.email ? (
+                      <>
+                        <span className="truncate flex-1">{contact.email}</span>
+                        <Mail
+                          className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => openGmailCompose(contact.email!)}
+                        />
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mobile */}
+                <div className="border-r border-border shrink-0" style={{ width: columnWidths.mobile }}>
+                  <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
+                    {contact.mobile_number ? (
+                      <>
+                        <span className="truncate flex-1">{contact.mobile_number}</span>
+                        <Phone
+                          className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => window.open(`tel:${contact.mobile_number}`, "_self")}
+                        />
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="border-r border-border shrink-0" style={{ width: columnWidths.status }}>
+                  <div className="px-3 py-1 min-h-[32px] flex items-center">
+                    <Select
+                      value={contact.status}
+                      onValueChange={(value) => handleUpdate(contact.id, "status", value)}
+                    >
+                      <SelectTrigger className="h-auto border-0 p-0 focus:ring-0 text-sm">
+                        <SelectValue>
+                          <span className={`${statusColors[contact.status]} px-2 py-0.5 rounded text-xs font-medium`}>
+                            {contact.status}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
+                        <SelectItem value="Contacted" className="text-sm">Contacted</SelectItem>
+                        <SelectItem value="Rejected" className="text-sm">Rejected</SelectItem>
+                        <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
+                        <SelectItem value="Decision Pending" className="text-sm">Decision Pending</SelectItem>
+                        <SelectItem value="Closed Won" className="text-sm">Closed Won</SelectItem>
+                        <SelectItem value="Closed Lost" className="text-sm">Closed Lost</SelectItem>
+                        <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="flex items-start flex-1" style={{ minWidth: columnWidths.notes }}>
+                  <div className="px-3 py-1.5 min-h-[32px] flex-1 text-sm whitespace-pre-wrap break-words">
+                    {contact.notes || <span className="text-muted-foreground/50">—</span>}
+                  </div>
+                  <button
+                    onClick={() => handleDelete(contact.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
