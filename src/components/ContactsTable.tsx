@@ -171,7 +171,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
           className="flex border-b border-border hover:bg-muted/30 group"
         >
           {/* Business Name */}
-          <div className="flex-1 min-w-[200px] max-w-[200px] border-r border-border overflow-hidden">
+          <div className="flex-1 min-w-[200px] border-r border-border">
             <div className="flex items-center gap-2 px-2 py-1.5">
               <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               {editingCell?.id === contact.id && editingCell?.field === "business_name" ? (
@@ -184,17 +184,17 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 />
               ) : (
                 <span
-                  className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm truncate"
+                  className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm"
                   onClick={() => setEditingCell({ id: contact.id, field: "business_name" })}
                 >
-                  <span className="truncate">{contact.business_name || <span className="text-muted-foreground/50 text-sm">Empty</span>}</span>
+                  {contact.business_name || <span className="text-muted-foreground/50 text-sm">Empty</span>}
                 </span>
               )}
             </div>
           </div>
 
           {/* Email */}
-          <div className="flex-1 min-w-[180px] max-w-[180px] border-r border-border overflow-hidden">
+          <div className="flex-1 min-w-[180px] border-r border-border">
             {editingCell?.id === contact.id && editingCell?.field === "email" ? (
               <Input
                 ref={inputRef}
@@ -205,16 +205,16 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm truncate"
+                className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm"
                 onClick={() => setEditingCell({ id: contact.id, field: "email" })}
               >
-                <span className="truncate">{contact.email || <span className="text-muted-foreground/50 text-sm">Empty</span>}</span>
+                {contact.email || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
             )}
           </div>
 
           {/* Mobile */}
-          <div className="flex-1 min-w-[140px] max-w-[140px] border-r border-border overflow-hidden">
+          <div className="flex-1 min-w-[140px] border-r border-border">
             {editingCell?.id === contact.id && editingCell?.field === "mobile_number" ? (
               <Input
                 ref={inputRef}
@@ -225,10 +225,10 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm truncate"
+                className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm"
                 onClick={() => setEditingCell({ id: contact.id, field: "mobile_number" })}
               >
-                <span className="truncate">{contact.mobile_number || <span className="text-muted-foreground/50 text-sm">Empty</span>}</span>
+                {contact.mobile_number || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
             )}
           </div>
@@ -255,7 +255,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
           </div>
 
           {/* Notes */}
-          <div className="flex-1 min-w-[200px] flex items-center overflow-hidden">
+          <div className="flex-1 min-w-[200px] flex items-center">
             {editingCell?.id === contact.id && editingCell?.field === "notes" ? (
               <Input
                 ref={inputRef}
@@ -266,15 +266,15 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1 min-h-[32px] flex items-center flex-1 hover:bg-muted/50 text-sm truncate"
+                className="cursor-text px-3 py-1 min-h-[32px] flex items-center flex-1 hover:bg-muted/50 text-sm"
                 onClick={() => setEditingCell({ id: contact.id, field: "notes" })}
               >
-                <span className="truncate">{contact.notes || <span className="text-muted-foreground/50 text-sm">Empty</span>}</span>
+                {contact.notes || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
             )}
             <button
               onClick={() => handleDelete(contact.id)}
-              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
+              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity"
             >
               <Trash2 className="w-3.5 h-3.5 text-destructive" />
             </button>
