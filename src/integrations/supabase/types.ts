@@ -39,11 +39,13 @@ export type Database = {
           contact_count: number | null
           created_at: string
           email: string | null
+          follow_up_at: string | null
           id: string
           last_contacted_at: string | null
           link: string | null
           mobile_number: string | null
           notes: string | null
+          priority_level: string | null
           status: string
           updated_at: string
         }
@@ -53,11 +55,13 @@ export type Database = {
           contact_count?: number | null
           created_at?: string
           email?: string | null
+          follow_up_at?: string | null
           id?: string
           last_contacted_at?: string | null
           link?: string | null
           mobile_number?: string | null
           notes?: string | null
+          priority_level?: string | null
           status?: string
           updated_at?: string
         }
@@ -67,11 +71,13 @@ export type Database = {
           contact_count?: number | null
           created_at?: string
           email?: string | null
+          follow_up_at?: string | null
           id?: string
           last_contacted_at?: string | null
           link?: string | null
           mobile_number?: string | null
           notes?: string | null
+          priority_level?: string | null
           status?: string
           updated_at?: string
         }

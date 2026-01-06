@@ -8,9 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock } from "lucide-react";
+import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, CalendarIcon, Flag } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface EmailTemplate {
   subject: string;
@@ -22,6 +26,8 @@ interface ColumnWidths {
   email: number;
   mobile: number;
   status: number;
+  priority: number;
+  follow_up: number;
   last_contacted: number;
   link: number;
   notes: number;
@@ -32,6 +38,8 @@ const DEFAULT_WIDTHS: ColumnWidths = {
   email: 180,
   mobile: 140,
   status: 120,
+  priority: 100,
+  follow_up: 160,
   last_contacted: 160,
   link: 180,
   notes: 250,
@@ -50,6 +58,8 @@ interface Contact {
   notes: string | null;
   last_contacted_at: string | null;
   contact_count: number;
+  priority_level: string | null;
+  follow_up_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -289,6 +299,43 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     Completed: 8,
   };
 
+  const priorityColors: Record<string, string> = {
+    high: "bg-green-100 text-green-700 border-green-300",
+    medium: "bg-orange-100 text-orange-700 border-orange-300",
+    low: "bg-red-100 text-red-700 border-red-300",
+  };
+
+  const handleFollowUpChange = async (contactId: string, date: Date | undefined) => {
+    const dateValue = date ? date.toISOString() : null;
+    const { error } = await supabase
+      .from("contacts")
+      .update({ follow_up_at: dateValue, updated_at: new Date().toISOString() })
+      .eq("id", contactId);
+
+    if (!error) {
+      setContacts(
+        contacts.map((c) =>
+          c.id === contactId ? { ...c, follow_up_at: dateValue, updated_at: new Date().toISOString() } : c
+        )
+      );
+    }
+  };
+
+  const handlePriorityChange = async (contactId: string, priority: string) => {
+    const { error } = await supabase
+      .from("contacts")
+      .update({ priority_level: priority, updated_at: new Date().toISOString() })
+      .eq("id", contactId);
+
+    if (!error) {
+      setContacts(
+        contacts.map((c) =>
+          c.id === contactId ? { ...c, priority_level: priority, updated_at: new Date().toISOString() } : c
+        )
+      );
+    }
+  };
+
   // Separate and sort contacts
   const activeContacts = contacts
     .filter((c) => c.status !== "Completed")
@@ -353,6 +400,20 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
         >
           Status
           <ResizeHandle columnKey="status" />
+        </div>
+        <div
+          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
+          style={{ width: columnWidths.priority }}
+        >
+          Priority
+          <ResizeHandle columnKey="priority" />
+        </div>
+        <div
+          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
+          style={{ width: columnWidths.follow_up }}
+        >
+          Follow Up
+          <ResizeHandle columnKey="follow_up" />
         </div>
         <div
           className="relative px-3 py-2 border-r border-border font-medium shrink-0"
@@ -578,6 +639,76 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             </Select>
           </div>
 
+          {/* Priority */}
+          <div
+            className="border-r border-border shrink-0"
+            style={{ width: columnWidths.priority }}
+          >
+            <Select
+              value={contact.priority_level || "low"}
+              onValueChange={(value) => handlePriorityChange(contact.id, value)}
+            >
+              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
+                <SelectValue>
+                  <span className={`${priorityColors[contact.priority_level || "low"]} px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1`}>
+                    <Flag className="w-3 h-3" />
+                    {(contact.priority_level || "low").charAt(0).toUpperCase() + (contact.priority_level || "low").slice(1)}
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high" className="text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-green-500" />
+                    High
+                  </span>
+                </SelectItem>
+                <SelectItem value="medium" className="text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-orange-500" />
+                    Medium
+                  </span>
+                </SelectItem>
+                <SelectItem value="low" className="text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-red-500" />
+                    Low
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Follow Up */}
+          <div
+            className="border-r border-border shrink-0"
+            style={{ width: columnWidths.follow_up }}
+          >
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full h-full justify-start text-left font-normal rounded-none text-sm px-3",
+                    !contact.follow_up_at && "text-muted-foreground/50"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {contact.follow_up_at ? format(new Date(contact.follow_up_at), "MMM d, yyyy") : "Set date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={contact.follow_up_at ? new Date(contact.follow_up_at) : undefined}
+                  onSelect={(date) => handleFollowUpChange(contact.id, date)}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           {/* Last Contacted */}
           <div
             className="border-r border-border shrink-0"
@@ -666,6 +797,12 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               </div>
               <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.status }}>
                 Status
+              </div>
+              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.priority }}>
+                Priority
+              </div>
+              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.follow_up }}>
+                Follow Up
               </div>
               <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.last_contacted }}>
                 Last Contacted
@@ -766,6 +903,30 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                         <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* Priority */}
+                <div className="border-r border-border shrink-0" style={{ width: columnWidths.priority }}>
+                  <div className="px-3 py-1 min-h-[32px] flex items-center">
+                    <span className={`${priorityColors[contact.priority_level || "low"]} px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1`}>
+                      <Flag className="w-3 h-3" />
+                      {(contact.priority_level || "low").charAt(0).toUpperCase() + (contact.priority_level || "low").slice(1)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Follow Up */}
+                <div className="border-r border-border shrink-0" style={{ width: columnWidths.follow_up }}>
+                  <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
+                    {contact.follow_up_at ? (
+                      <span className="flex items-center gap-2">
+                        <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                        {format(new Date(contact.follow_up_at), "MMM d, yyyy")}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
                   </div>
                 </div>
 
