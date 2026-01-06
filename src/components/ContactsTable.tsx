@@ -187,8 +187,8 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Add New Row */}
-            {isAdding && (
+            {/* Add New Row - show at TOP when table is empty */}
+            {isAdding && contacts.length === 0 && (
               <TableRow className="bg-primary/5">
                 <TableCell>
                   <Input
@@ -389,6 +389,80 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                 </TableCell>
               </TableRow>
             ))}
+
+            {/* Add New Row - show at BOTTOM when table has contacts */}
+            {isAdding && contacts.length > 0 && (
+              <TableRow className="bg-primary/5">
+                <TableCell>
+                  <Input
+                    placeholder="Business name"
+                    value={newContact.business_name}
+                    onChange={(e) =>
+                      setNewContact({ ...newContact, business_name: e.target.value })
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    placeholder="Email"
+                    value={newContact.email}
+                    onChange={(e) =>
+                      setNewContact({ ...newContact, email: e.target.value })
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    placeholder="Mobile"
+                    value={newContact.mobile_number}
+                    onChange={(e) =>
+                      setNewContact({ ...newContact, mobile_number: e.target.value })
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={newContact.status}
+                    onValueChange={(value) =>
+                      setNewContact({ ...newContact, status: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Already Called">Already Called</SelectItem>
+                      <SelectItem value="Busy">Busy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Textarea
+                    placeholder="Notes / Feedback"
+                    value={newContact.notes}
+                    onChange={(e) =>
+                      setNewContact({ ...newContact, notes: e.target.value })
+                    }
+                    className="min-h-[60px]"
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={handleAdd}>
+                      <Save className="w-4 h-4 text-green-500" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onAddingChange?.(false)}
+                    >
+                      <X className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
 
             {/* Always show add button row */}
             {!isAdding && (
