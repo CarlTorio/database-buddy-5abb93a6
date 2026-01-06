@@ -220,14 +220,14 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   };
 
   const statusColors: Record<string, string> = {
-    Lead: "bg-slate-500 text-white",
-    Contacted: "bg-blue-500 text-white",
-    Rejected: "bg-red-500 text-white",
-    "Demo Stage": "bg-purple-500 text-white",
-    "Decision Pending": "bg-orange-500 text-white",
-    "Closed Won": "bg-green-500 text-white",
-    "Closed Lost": "bg-gray-600 text-white",
-    Completed: "bg-emerald-600 text-white",
+    Lead: "bg-slate-100 text-slate-700 border-slate-300",
+    Contacted: "bg-blue-100 text-blue-700 border-blue-300",
+    Rejected: "bg-red-100 text-red-700 border-red-300",
+    "Demo Stage": "bg-purple-100 text-purple-700 border-purple-300",
+    "Decision Pending": "bg-orange-100 text-orange-700 border-orange-300",
+    "Closed Won": "bg-green-100 text-green-700 border-green-300",
+    "Closed Lost": "bg-gray-100 text-gray-700 border-gray-300",
+    Completed: "bg-emerald-100 text-emerald-700 border-emerald-300",
   };
 
   // Priority order for sorting (higher number = higher priority = shows at top)
