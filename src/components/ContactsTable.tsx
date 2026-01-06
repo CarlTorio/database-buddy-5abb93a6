@@ -154,15 +154,16 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   };
 
   const handleUpdate = async (id: string, field: string, value: string) => {
+    const updateValue = field === "status" ? value : (value.trim() || null);
     const { error } = await supabase
       .from("contacts")
-      .update({ [field]: value.trim() || null })
+      .update({ [field]: updateValue, updated_at: new Date().toISOString() })
       .eq("id", id);
 
     if (!error) {
       setContacts(
         contacts.map((c) =>
-          c.id === id ? { ...c, [field]: value.trim() || null } : c
+          c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
         )
       );
     }
