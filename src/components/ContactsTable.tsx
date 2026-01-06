@@ -178,11 +178,11 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[200px]">Business Name</TableHead>
-              <TableHead className="w-[200px]">Email</TableHead>
-              <TableHead className="w-[150px]">Mobile Number</TableHead>
-              <TableHead className="w-[140px]">Status</TableHead>
-              <TableHead>Notes</TableHead>
+              <TableHead className="w-[200px] border-r border-border">Business Name</TableHead>
+              <TableHead className="w-[200px] border-r border-border">Email</TableHead>
+              <TableHead className="w-[150px] border-r border-border">Mobile Number</TableHead>
+              <TableHead className="w-[140px] border-r border-border">Status</TableHead>
+              <TableHead className="border-r border-border">Notes</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -190,7 +190,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
             {/* Add New Row - show at TOP when table is empty */}
             {isAdding && contacts.length === 0 && (
               <TableRow className="bg-primary/5">
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Input
                     placeholder="Business name"
                     value={newContact.business_name}
@@ -199,7 +199,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     }
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Input
                     placeholder="Email"
                     value={newContact.email}
@@ -208,7 +208,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     }
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Input
                     placeholder="Mobile"
                     value={newContact.mobile_number}
@@ -217,7 +217,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     }
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Select
                     value={newContact.status}
                     onValueChange={(value) =>
@@ -234,7 +234,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Textarea
                     placeholder="Notes / Feedback"
                     value={newContact.notes}
@@ -264,7 +264,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
             {/* Existing Contacts */}
             {contacts.map((contact) => (
               <TableRow key={contact.id}>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   {editingId === contact.id ? (
                     <Input
                       value={editData.business_name || ""}
@@ -281,7 +281,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     </span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   {editingId === contact.id ? (
                     <Input
                       value={editData.email || ""}
@@ -298,7 +298,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     </span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   {editingId === contact.id ? (
                     <Input
                       value={editData.mobile_number || ""}
@@ -315,7 +315,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     </span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   {editingId === contact.id ? (
                     <Select
                       value={editData.status}
@@ -342,7 +342,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     </span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   {editingId === contact.id ? (
                     <Textarea
                       value={editData.notes || ""}
@@ -393,7 +393,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
             {/* Add New Row - show at BOTTOM when table has contacts */}
             {isAdding && contacts.length > 0 && (
               <TableRow className="bg-primary/5">
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Input
                     placeholder="Business name"
                     value={newContact.business_name}
@@ -402,7 +402,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     }
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Input
                     placeholder="Email"
                     value={newContact.email}
@@ -411,7 +411,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     }
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Input
                     placeholder="Mobile"
                     value={newContact.mobile_number}
@@ -420,7 +420,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     }
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Select
                     value={newContact.status}
                     onValueChange={(value) =>
@@ -437,7 +437,7 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>
+                <TableCell className="border-r border-border">
                   <Textarea
                     placeholder="Notes / Feedback"
                     value={newContact.notes}
