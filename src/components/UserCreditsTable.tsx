@@ -199,13 +199,44 @@ const UserCreditsTable = () => {
     return phtTime < next8AM;
   };
 
-  // Load saved emails from localStorage on mount
+  // Load saved emails from database on mount - get unique base emails (shortest email per pattern)
   useEffect(() => {
-    const stored = localStorage.getItem('savedEmails');
-    if (stored) {
-      setSavedEmails(JSON.parse(stored));
-    }
-    setLoading(false);
+    const fetchSavedEmails = async () => {
+      const { data, error } = await supabase
+        .from('user_emails')
+        .select('email')
+        .order('email', { ascending: true });
+      
+      if (!error && data) {
+        // Extract base emails (emails without dots in local part, or shortest versions)
+        const baseEmails = new Set<string>();
+        data.forEach(row => {
+          const [localPart, domain] = row.email.split('@');
+          // Check if this is a base email (no dots or minimal dots)
+          const withoutDots = localPart.replace(/\./g, '');
+          // Find if we already have this base
+          let isBase = true;
+          baseEmails.forEach(existing => {
+            const [existingLocal] = existing.split('@');
+            if (existingLocal.replace(/\./g, '') === withoutDots) {
+              isBase = false;
+            }
+          });
+          if (isBase) {
+            // Add the shortest version (no dots)
+            const baseEmail = `${withoutDots}@${domain}`;
+            if (data.some(d => d.email === baseEmail)) {
+              baseEmails.add(baseEmail);
+            } else {
+              baseEmails.add(row.email);
+            }
+          }
+        });
+        setSavedEmails(Array.from(baseEmails));
+      }
+      setLoading(false);
+    };
+    fetchSavedEmails();
   }, []);
 
   // Fetch emails from database when dashboard is shown
@@ -371,12 +402,27 @@ const UserCreditsTable = () => {
     setCopiedRows(prev => new Set(prev).add(no));
   };
 
-  const handleSaveEmail = () => {
+  const handleSaveEmail = async () => {
     if (newEmail.trim() && !savedEmails.includes(newEmail.trim())) {
-      const updated = [...savedEmails, newEmail.trim()];
-      setSavedEmails(updated);
-      localStorage.setItem('savedEmails', JSON.stringify(updated));
-      setNewEmail("");
+      // Generate variations and insert into database
+      const variations = generateEmailVariations(newEmail.trim());
+      
+      const newRows = variations.map((email) => ({
+        email,
+        status: 'Activated',
+        credits: 5,
+        monthly_credits: 0,
+        max_monthly_credits: 30,
+      }));
+      
+      const { error } = await supabase
+        .from('user_emails')
+        .insert(newRows);
+      
+      if (!error) {
+        setSavedEmails([...savedEmails, newEmail.trim()]);
+        setNewEmail("");
+      }
     }
   };
 
@@ -394,7 +440,6 @@ const UserCreditsTable = () => {
     newEmails.splice(index, 0, draggedEmail);
     
     setSavedEmails(newEmails);
-    localStorage.setItem('savedEmails', JSON.stringify(newEmails));
     setDraggedIndex(index);
   };
 
