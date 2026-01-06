@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, CalendarIcon, Flag } from "lucide-react";
+import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, CalendarIcon, Flag, GripVertical } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,6 +20,8 @@ interface EmailTemplate {
   subject: string;
   body: string;
 }
+
+type ColumnKey = "business_name" | "link" | "email" | "mobile" | "status" | "priority" | "follow_up" | "last_contacted" | "notes";
 
 interface ColumnWidths {
   business_name: number;
@@ -44,6 +46,30 @@ const DEFAULT_WIDTHS: ColumnWidths = {
   link: 180,
   notes: 250,
 };
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  business_name: "Business Name",
+  link: "Link",
+  email: "Email",
+  mobile: "Mobile",
+  status: "Status",
+  priority: "Priority",
+  follow_up: "Follow Up",
+  last_contacted: "Last Contacted",
+  notes: "Notes",
+};
+
+const DEFAULT_COLUMN_ORDER: ColumnKey[] = [
+  "business_name",
+  "link",
+  "email",
+  "mobile",
+  "status",
+  "priority",
+  "follow_up",
+  "last_contacted",
+  "notes",
+];
 
 const MIN_WIDTH = 80;
 
@@ -80,6 +106,9 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
   const startWidthRef = useRef<number>(0);
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
+  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(DEFAULT_COLUMN_ORDER);
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
   // Fetch email template
   useEffect(() => {
@@ -124,6 +153,49 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     },
     [columnWidths]
   );
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, columnKey: ColumnKey) => {
+    setDraggedColumn(columnKey);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", columnKey);
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: ColumnKey) => {
+    e.preventDefault();
+    if (draggedColumn && draggedColumn !== columnKey) {
+      setDragOverColumn(columnKey);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumn: ColumnKey) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetColumn) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+
+    const newOrder = [...columnOrder];
+    const draggedIndex = newOrder.indexOf(draggedColumn);
+    const targetIndex = newOrder.indexOf(targetColumn);
+
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedColumn);
+
+    setColumnOrder(newOrder);
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
 
   useEffect(() => {
     fetchContacts();
@@ -204,7 +276,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     handleUpdate(id, field, editValue);
     setEditingCell(null);
 
-    // Clean up empty new rows
     if (newRowId === id && !editValue.trim() && field === "business_name") {
       const contact = contacts.find((c) => c.id === id);
       if (contact && !contact.business_name && !contact.email && !contact.mobile_number) {
@@ -229,10 +300,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
       toast.error("Email template not loaded");
       return;
     }
-    
-    // Track the contact
     await trackContact(contactId);
-    
     const subject = encodeURIComponent(emailTemplate.subject);
     const body = encodeURIComponent(emailTemplate.body);
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`;
@@ -287,7 +355,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     Completed: "bg-emerald-100 text-emerald-700 border-emerald-300",
   };
 
-  // Priority order for sorting (higher number = higher priority = shows at top)
   const statusPriority: Record<string, number> = {
     Lead: 1,
     Rejected: 2,
@@ -336,7 +403,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     }
   };
 
-  // Separate and sort contacts
   const activeContacts = contacts
     .filter((c) => c.status !== "Completed")
     .sort((a, b) => (statusPriority[b.status] || 0) - (statusPriority[a.status] || 0));
@@ -354,95 +420,18 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="text-center text-muted-foreground py-12">
-        Loading contacts...
-      </div>
-    );
-  }
+  // Render column cell content for active contacts
+  const renderActiveCell = (contact: Contact, columnKey: ColumnKey, isLast: boolean) => {
+    const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
+    const style = isLast 
+      ? { minWidth: columnWidths[columnKey] } 
+      : { width: columnWidths[columnKey] };
 
-  return (
-    <div className="w-full overflow-x-auto border border-border rounded-lg">
-      {/* Header */}
-      <div className="flex border-b border-border text-sm text-muted-foreground">
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.business_name }}
-        >
-          Business Name
-          <ResizeHandle columnKey="business_name" />
-        </div>
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.link }}
-        >
-          Link
-          <ResizeHandle columnKey="link" />
-        </div>
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.email }}
-        >
-          Email
-          <ResizeHandle columnKey="email" />
-        </div>
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.mobile }}
-        >
-          Mobile
-          <ResizeHandle columnKey="mobile" />
-        </div>
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.status }}
-        >
-          Status
-          <ResizeHandle columnKey="status" />
-        </div>
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.priority }}
-        >
-          Priority
-          <ResizeHandle columnKey="priority" />
-        </div>
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.follow_up }}
-        >
-          Follow Up
-          <ResizeHandle columnKey="follow_up" />
-        </div>
-        <div
-          className="relative px-3 py-2 border-r border-border font-medium shrink-0"
-          style={{ width: columnWidths.last_contacted }}
-        >
-          Last Contacted
-          <ResizeHandle columnKey="last_contacted" />
-        </div>
-        <div
-          className="relative px-3 py-2 font-medium flex-1 min-w-[150px]"
-          style={{ minWidth: columnWidths.notes }}
-        >
-          Notes
-          <ResizeHandle columnKey="notes" />
-        </div>
-      </div>
-
-      {/* Active Rows */}
-      {activeContacts.map((contact) => (
-        <div
-          key={contact.id}
-          className="flex border-b border-border hover:bg-muted/30 group"
-        >
-          {/* Business Name */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.business_name }}
-          >
-            <div className="flex items-center gap-2 px-2 py-1.5">
+    switch (columnKey) {
+      case "business_name":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="flex items-center gap-2 px-2 py-1.5 w-full">
               <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               {editingCell?.id === contact.id && editingCell?.field === "business_name" ? (
                 <Input
@@ -463,12 +452,11 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               )}
             </div>
           </div>
+        );
 
-          {/* Link */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.link }}
-          >
+      case "link":
+        return (
+          <div className={baseClass} style={style}>
             {editingCell?.id === contact.id && editingCell?.field === "link" ? (
               <Input
                 ref={inputRef}
@@ -480,9 +468,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 placeholder="https://..."
               />
             ) : (
-              <div
-                className="px-3 py-1 min-h-[32px] flex items-center text-sm"
-              >
+              <div className="px-3 py-1 min-h-[32px] flex items-center text-sm w-full">
                 {contact.link ? (
                   <div className="flex items-center gap-2 w-full">
                     <span
@@ -521,12 +507,11 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               </div>
             )}
           </div>
+        );
 
-          {/* Email */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.email }}
-          >
+      case "email":
+        return (
+          <div className={baseClass} style={style}>
             {editingCell?.id === contact.id && editingCell?.field === "email" ? (
               <Input
                 ref={inputRef}
@@ -537,7 +522,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
-              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
+              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
                 {contact.email ? (
                   <>
                     <span
@@ -565,12 +550,11 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               </div>
             )}
           </div>
+        );
 
-          {/* Mobile */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.mobile }}
-          >
+      case "mobile":
+        return (
+          <div className={baseClass} style={style}>
             {editingCell?.id === contact.id && editingCell?.field === "mobile_number" ? (
               <Input
                 ref={inputRef}
@@ -581,7 +565,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
-              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
+              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
                 {contact.mobile_number ? (
                   <>
                     <span
@@ -609,12 +593,11 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               </div>
             )}
           </div>
+        );
 
-          {/* Status */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.status }}
-          >
+      case "status":
+        return (
+          <div className={baseClass} style={style}>
             <Select
               value={contact.status}
               onValueChange={(value) => handleUpdate(contact.id, "status", value)}
@@ -638,12 +621,11 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               </SelectContent>
             </Select>
           </div>
+        );
 
-          {/* Priority */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.priority }}
-          >
+      case "priority":
+        return (
+          <div className={baseClass} style={style}>
             <Select
               value={contact.priority_level || "low"}
               onValueChange={(value) => handlePriorityChange(contact.id, value)}
@@ -678,12 +660,11 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               </SelectContent>
             </Select>
           </div>
+        );
 
-          {/* Follow Up */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.follow_up }}
-          >
+      case "follow_up":
+        return (
+          <div className={baseClass} style={style}>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -708,14 +689,13 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               </PopoverContent>
             </Popover>
           </div>
+        );
 
-          {/* Last Contacted */}
-          <div
-            className="border-r border-border shrink-0"
-            style={{ width: columnWidths.last_contacted }}
-          >
+      case "last_contacted":
+        return (
+          <div className={baseClass} style={style}>
             <div 
-              className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded"
+              className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded w-full"
               onClick={() => trackContact(contact.id)}
               title="Click to log contact"
             >
@@ -734,12 +714,11 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               )}
             </div>
           </div>
+        );
 
-          {/* Notes */}
-          <div
-            className="flex items-start flex-1"
-            style={{ minWidth: columnWidths.notes }}
-          >
+      case "notes":
+        return (
+          <div className={baseClass} style={style}>
             {editingCell?.id === contact.id && editingCell?.field === "notes" ? (
               <Input
                 ref={inputRef}
@@ -757,13 +736,244 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 {contact.notes || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
             )}
-            <button
-              onClick={() => handleDelete(contact.id)}
-              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-destructive" />
-            </button>
           </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // Render column cell for completed contacts (read-only style)
+  const renderCompletedCell = (contact: Contact, columnKey: ColumnKey, isLast: boolean) => {
+    const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
+    const style = isLast 
+      ? { minWidth: columnWidths[columnKey] } 
+      : { width: columnWidths[columnKey] };
+
+    switch (columnKey) {
+      case "business_name":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="text-sm truncate">{contact.business_name || "—"}</span>
+            </div>
+          </div>
+        );
+
+      case "link":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
+              {contact.link ? (
+                <a
+                  href={contact.link.startsWith("http") ? contact.link : `https://${contact.link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline truncate"
+                >
+                  {contact.link}
+                </a>
+              ) : (
+                <span className="text-muted-foreground/50">—</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case "email":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
+              {contact.email ? (
+                <>
+                  <span className="truncate flex-1">{contact.email}</span>
+                  <Mail
+                    className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => openGmailCompose(contact.email!, contact.id)}
+                  />
+                </>
+              ) : (
+                <span className="text-muted-foreground/50">—</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case "mobile":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
+              {contact.mobile_number ? (
+                <>
+                  <span className="truncate flex-1">{contact.mobile_number}</span>
+                  <Phone
+                    className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => handlePhoneCall(contact.mobile_number!, contact.id)}
+                  />
+                </>
+              ) : (
+                <span className="text-muted-foreground/50">—</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case "status":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1 min-h-[32px] flex items-center">
+              <Select
+                value={contact.status}
+                onValueChange={(value) => handleUpdate(contact.id, "status", value)}
+              >
+                <SelectTrigger className="h-auto border-0 p-0 focus:ring-0 text-sm">
+                  <SelectValue>
+                    <span className={`${statusColors[contact.status]} px-2 py-0.5 rounded text-xs font-medium`}>
+                      {contact.status}
+                    </span>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
+                  <SelectItem value="Contacted" className="text-sm">Contacted</SelectItem>
+                  <SelectItem value="Rejected" className="text-sm">Rejected</SelectItem>
+                  <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
+                  <SelectItem value="Decision Pending" className="text-sm">Decision Pending</SelectItem>
+                  <SelectItem value="Closed Won" className="text-sm">Closed Won</SelectItem>
+                  <SelectItem value="Closed Lost" className="text-sm">Closed Lost</SelectItem>
+                  <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+
+      case "priority":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1 min-h-[32px] flex items-center">
+              <span className={`${priorityColors[contact.priority_level || "low"]} px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1`}>
+                <Flag className="w-3 h-3" />
+                {(contact.priority_level || "low").charAt(0).toUpperCase() + (contact.priority_level || "low").slice(1)}
+              </span>
+            </div>
+          </div>
+        );
+
+      case "follow_up":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
+              {contact.follow_up_at ? (
+                <span className="flex items-center gap-2">
+                  <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                  {format(new Date(contact.follow_up_at), "MMM d, yyyy")}
+                </span>
+              ) : (
+                <span className="text-muted-foreground/50">—</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case "last_contacted":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
+              {contact.last_contacted_at ? (
+                <div className="flex items-center gap-2 w-full">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate flex-1 text-xs">
+                    {formatLastContacted(contact.last_contacted_at)}
+                  </span>
+                  <div className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-primary/10 text-primary text-xs font-medium rounded">
+                    {contact.contact_count || 0}
+                  </div>
+                </div>
+              ) : (
+                <span className="text-muted-foreground/50 text-xs">Never</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case "notes":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-3 py-1.5 min-h-[32px] flex-1 text-sm whitespace-pre-wrap break-words">
+              {contact.notes || <span className="text-muted-foreground/50">—</span>}
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center text-muted-foreground py-12">
+        Loading contacts...
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full overflow-x-auto border border-border rounded-lg">
+      {/* Header */}
+      <div className="flex border-b border-border text-sm text-muted-foreground">
+        {columnOrder.map((columnKey, index) => {
+          const isLast = index === columnOrder.length - 1;
+          return (
+            <div
+              key={columnKey}
+              draggable
+              onDragStart={(e) => handleDragStart(e, columnKey)}
+              onDragOver={(e) => handleDragOver(e, columnKey)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, columnKey)}
+              onDragEnd={handleDragEnd}
+              className={cn(
+                "relative px-3 py-2 font-medium cursor-grab active:cursor-grabbing select-none",
+                isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0",
+                draggedColumn === columnKey && "opacity-50",
+                dragOverColumn === columnKey && "bg-primary/10"
+              )}
+              style={isLast ? { minWidth: columnWidths[columnKey] } : { width: columnWidths[columnKey] }}
+            >
+              <div className="flex items-center gap-1">
+                <GripVertical className="w-3 h-3 text-muted-foreground/50" />
+                {COLUMN_LABELS[columnKey]}
+              </div>
+              <ResizeHandle columnKey={columnKey} />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Active Rows */}
+      {activeContacts.map((contact) => (
+        <div
+          key={contact.id}
+          className="flex border-b border-border hover:bg-muted/30 group"
+        >
+          {columnOrder.map((columnKey, index) => {
+            const isLast = index === columnOrder.length - 1;
+            return (
+              <div key={columnKey} className="contents">
+                {renderActiveCell(contact, columnKey, isLast)}
+              </div>
+            );
+          })}
+          <button
+            onClick={() => handleDelete(contact.id)}
+            className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+          </button>
         </div>
       ))}
 
@@ -783,33 +993,21 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
           <div className="border border-border rounded-lg">
             {/* Completed Header */}
             <div className="flex border-b border-border text-sm text-muted-foreground bg-emerald-50/50 dark:bg-emerald-950/20">
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.business_name }}>
-                Business Name
-              </div>
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.link }}>
-                Link
-              </div>
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.email }}>
-                Email
-              </div>
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.mobile }}>
-                Mobile
-              </div>
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.status }}>
-                Status
-              </div>
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.priority }}>
-                Priority
-              </div>
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.follow_up }}>
-                Follow Up
-              </div>
-              <div className="px-3 py-2 border-r border-border font-medium shrink-0" style={{ width: columnWidths.last_contacted }}>
-                Last Contacted
-              </div>
-              <div className="px-3 py-2 font-medium flex-1 min-w-[150px]" style={{ minWidth: columnWidths.notes }}>
-                Notes
-              </div>
+              {columnOrder.map((columnKey, index) => {
+                const isLast = index === columnOrder.length - 1;
+                return (
+                  <div
+                    key={columnKey}
+                    className={cn(
+                      "px-3 py-2 font-medium",
+                      isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0"
+                    )}
+                    style={isLast ? { minWidth: columnWidths[columnKey] } : { width: columnWidths[columnKey] }}
+                  >
+                    {COLUMN_LABELS[columnKey]}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Completed Rows */}
@@ -818,149 +1016,20 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 key={contact.id}
                 className="flex border-b border-border hover:bg-muted/30 group last:border-b-0"
               >
-                {/* Business Name */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.business_name }}>
-                  <div className="flex items-center gap-2 px-2 py-1.5">
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-sm truncate">{contact.business_name || "—"}</span>
-                  </div>
-                </div>
-
-                {/* Link */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.link }}>
-                  <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
-                    {contact.link ? (
-                      <a
-                        href={contact.link.startsWith("http") ? contact.link : `https://${contact.link}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline truncate"
-                      >
-                        {contact.link}
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.email }}>
-                  <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
-                    {contact.email ? (
-                      <>
-                        <span className="truncate flex-1">{contact.email}</span>
-                        <Mail
-                          className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
-                          onClick={() => openGmailCompose(contact.email!, contact.id)}
-                        />
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Mobile */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.mobile }}>
-                  <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
-                    {contact.mobile_number ? (
-                      <>
-                        <span className="truncate flex-1">{contact.mobile_number}</span>
-                        <Phone
-                          className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
-                          onClick={() => handlePhoneCall(contact.mobile_number!, contact.id)}
-                        />
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.status }}>
-                  <div className="px-3 py-1 min-h-[32px] flex items-center">
-                    <Select
-                      value={contact.status}
-                      onValueChange={(value) => handleUpdate(contact.id, "status", value)}
-                    >
-                      <SelectTrigger className="h-auto border-0 p-0 focus:ring-0 text-sm">
-                        <SelectValue>
-                          <span className={`${statusColors[contact.status]} px-2 py-0.5 rounded text-xs font-medium`}>
-                            {contact.status}
-                          </span>
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
-                        <SelectItem value="Contacted" className="text-sm">Contacted</SelectItem>
-                        <SelectItem value="Rejected" className="text-sm">Rejected</SelectItem>
-                        <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
-                        <SelectItem value="Decision Pending" className="text-sm">Decision Pending</SelectItem>
-                        <SelectItem value="Closed Won" className="text-sm">Closed Won</SelectItem>
-                        <SelectItem value="Closed Lost" className="text-sm">Closed Lost</SelectItem>
-                        <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Priority */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.priority }}>
-                  <div className="px-3 py-1 min-h-[32px] flex items-center">
-                    <span className={`${priorityColors[contact.priority_level || "low"]} px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1`}>
-                      <Flag className="w-3 h-3" />
-                      {(contact.priority_level || "low").charAt(0).toUpperCase() + (contact.priority_level || "low").slice(1)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Follow Up */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.follow_up }}>
-                  <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
-                    {contact.follow_up_at ? (
-                      <span className="flex items-center gap-2">
-                        <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                        {format(new Date(contact.follow_up_at), "MMM d, yyyy")}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Last Contacted */}
-                <div className="border-r border-border shrink-0" style={{ width: columnWidths.last_contacted }}>
-                  <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
-                    {contact.last_contacted_at ? (
-                      <div className="flex items-center gap-2 w-full">
-                        <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate flex-1 text-xs">
-                          {formatLastContacted(contact.last_contacted_at)}
-                        </span>
-                        <div className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-primary/10 text-primary text-xs font-medium rounded">
-                          {contact.contact_count || 0}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground/50 text-xs">Never</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div className="flex items-start flex-1" style={{ minWidth: columnWidths.notes }}>
-                  <div className="px-3 py-1.5 min-h-[32px] flex-1 text-sm whitespace-pre-wrap break-words">
-                    {contact.notes || <span className="text-muted-foreground/50">—</span>}
-                  </div>
-                  <button
-                    onClick={() => handleDelete(contact.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                  </button>
-                </div>
+                {columnOrder.map((columnKey, index) => {
+                  const isLast = index === columnOrder.length - 1;
+                  return (
+                    <div key={columnKey} className="contents">
+                      {renderCompletedCell(contact, columnKey, isLast)}
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => handleDelete(contact.id)}
+                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                </button>
               </div>
             ))}
           </div>
