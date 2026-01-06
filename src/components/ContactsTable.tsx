@@ -346,7 +346,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
 
           {/* Notes */}
           <div
-            className="flex items-center flex-1"
+            className="flex items-start flex-1"
             style={{ minWidth: columnWidths.notes }}
           >
             {editingCell?.id === contact.id && editingCell?.field === "notes" ? (
@@ -359,7 +359,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1 min-h-[32px] flex items-center flex-1 hover:bg-muted/50 text-sm truncate"
+                className="cursor-text px-3 py-1.5 min-h-[32px] flex-1 hover:bg-muted/50 text-sm whitespace-pre-wrap break-words"
                 onClick={() => setEditingCell({ id: contact.id, field: "notes" })}
               >
                 {contact.notes || <span className="text-muted-foreground/50 text-sm">Empty</span>}
