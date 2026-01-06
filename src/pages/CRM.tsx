@@ -65,8 +65,8 @@ const CRM = () => {
 
   if (selectedCategory) {
     return (
-      <div className="min-h-screen bg-background pt-20 px-4">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-background pt-20 px-4 lg:px-8">
+        <div className="w-full">
           <div className="flex items-center justify-between mb-4">
             <Button
               variant="ghost"
