@@ -66,29 +66,28 @@ const CRM = () => {
     return (
       <div className="min-h-screen bg-background pt-20 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSelectedCategory(null);
-                setIsAddingContact(false);
-              }}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Categories
-            </Button>
-            <Button
-              size="icon"
-              onClick={() => setIsAddingContact(true)}
-              disabled={isAddingContact}
-              className="rounded-full w-10 h-10"
-            >
-              <Plus className="w-5 h-5" />
-            </Button>
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelectedCategory(null);
+              setIsAddingContact(false);
+            }}
+            className="mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Categories
+          </Button>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             {selectedCategory.name}
           </h1>
+          <Button
+            size="icon"
+            onClick={() => setIsAddingContact(true)}
+            disabled={isAddingContact}
+            className="rounded-full w-10 h-10 mb-6"
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
           <ContactsTable
             categoryId={selectedCategory.id}
             isAdding={isAddingContact}
