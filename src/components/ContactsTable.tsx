@@ -111,21 +111,24 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
   const startWidthRef = useRef<number>(0);
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
-  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(() => {
-    const saved = localStorage.getItem('contacts-column-order');
+  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(DEFAULT_COLUMN_ORDER);
+
+  // Load column order from localStorage when categoryId changes
+  useEffect(() => {
+    const saved = localStorage.getItem(`contacts-column-order-${categoryId}`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Validate that all columns are present
         if (Array.isArray(parsed) && parsed.length === DEFAULT_COLUMN_ORDER.length) {
-          return parsed as ColumnKey[];
+          setColumnOrder(parsed as ColumnKey[]);
+          return;
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
-    return DEFAULT_COLUMN_ORDER;
-  });
+    setColumnOrder(DEFAULT_COLUMN_ORDER);
+  }, [categoryId]);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
@@ -207,7 +210,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     newOrder.splice(targetIndex, 0, draggedColumn);
 
     setColumnOrder(newOrder);
-    localStorage.setItem('contacts-column-order', JSON.stringify(newOrder));
+    localStorage.setItem(`contacts-column-order-${categoryId}`, JSON.stringify(newOrder));
     setDraggedColumn(null);
     setDragOverColumn(null);
   };
