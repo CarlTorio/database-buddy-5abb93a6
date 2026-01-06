@@ -77,17 +77,9 @@ const CRM = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Categories
           </Button>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-6">
             {selectedCategory.name}
           </h1>
-          <Button
-            size="icon"
-            onClick={() => setIsAddingContact(true)}
-            disabled={isAddingContact}
-            className="rounded-full w-10 h-10 mb-6"
-          >
-            <Plus className="w-5 h-5" />
-          </Button>
           <ContactsTable
             categoryId={selectedCategory.id}
             isAdding={isAddingContact}

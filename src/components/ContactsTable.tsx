@@ -178,7 +178,19 @@ const ContactsTable = ({ categoryId, isAdding = false, onAddingChange }: Contact
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[200px]">Business Name</TableHead>
+              <TableHead className="w-[200px]">
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    onClick={() => onAddingChange?.(true)}
+                    disabled={isAdding}
+                    className="rounded-full w-8 h-8"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                  Business Name
+                </div>
+              </TableHead>
               <TableHead className="w-[200px]">Email</TableHead>
               <TableHead className="w-[150px]">Mobile Number</TableHead>
               <TableHead className="w-[140px]">Status</TableHead>
