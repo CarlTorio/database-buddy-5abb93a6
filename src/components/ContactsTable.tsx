@@ -1047,7 +1047,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
           <h3 className="text-lg font-semibold mb-3 px-3 text-emerald-600">Completed ({completedContacts.length})</h3>
           <div className="border border-border rounded-lg">
             {/* Completed Header */}
-            <div className="flex border-b border-border text-sm text-muted-foreground bg-emerald-50/50 dark:bg-emerald-950/20">
+            <div className="flex border-b border-border text-sm text-muted-foreground bg-primary/10">
               {columnOrder.map((columnKey, index) => {
                 const isLast = index === columnOrder.length - 1;
                 return (
