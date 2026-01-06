@@ -40,6 +40,12 @@ const HeroSection = () => {
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
+            <Button asChild size="lg" variant="secondary" className="group">
+              <Link to="/crm">
+                Manage Contacts
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="lg" className="border-white/20 hover:bg-white/5">
               <a href="#tools">Explore Tools</a>
             </Button>
