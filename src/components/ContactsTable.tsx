@@ -51,6 +51,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
   const [newRowId, setNewRowId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
@@ -122,7 +123,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     if (!error && data) {
       setContacts([...contacts, data]);
       setNewRowId(data.id);
-      setEditingCell({ id: data.id, field: "business_name" });
+      startEditing(data.id, "business_name", "");
     } else {
       toast.error("Failed to add contact");
     }
@@ -154,12 +155,17 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     }
   };
 
-  const handleBlur = (id: string, field: string, value: string) => {
-    handleUpdate(id, field, value);
+  const startEditing = (id: string, field: string, currentValue: string | null) => {
+    setEditingCell({ id, field });
+    setEditValue(currentValue || "");
+  };
+
+  const handleBlur = (id: string, field: string) => {
+    handleUpdate(id, field, editValue);
     setEditingCell(null);
 
     // Clean up empty new rows
-    if (newRowId === id && !value.trim() && field === "business_name") {
+    if (newRowId === id && !editValue.trim() && field === "business_name") {
       const contact = contacts.find((c) => c.id === id);
       if (contact && !contact.business_name && !contact.email && !contact.mobile_number) {
         handleDelete(id);
@@ -168,9 +174,9 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     setNewRowId(null);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, id: string, field: string, value: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === "Enter") {
-      handleBlur(id, field, value);
+      handleBlur(id, field);
     }
     if (e.key === "Escape") {
       setEditingCell(null);
@@ -258,15 +264,16 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               {editingCell?.id === contact.id && editingCell?.field === "business_name" ? (
                 <Input
                   ref={inputRef}
-                  defaultValue={contact.business_name || ""}
-                  onBlur={(e) => handleBlur(contact.id, "business_name", e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, contact.id, "business_name", e.currentTarget.value)}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={() => handleBlur(contact.id, "business_name")}
+                  onKeyDown={(e) => handleKeyDown(e, contact.id, "business_name")}
                   className="h-6 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary text-sm"
                 />
               ) : (
                 <span
                   className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm truncate"
-                  onClick={() => setEditingCell({ id: contact.id, field: "business_name" })}
+                  onClick={() => startEditing(contact.id, "business_name", contact.business_name)}
                 >
                   {contact.business_name || <span className="text-muted-foreground/50 text-sm">Empty</span>}
                 </span>
@@ -282,15 +289,16 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             {editingCell?.id === contact.id && editingCell?.field === "email" ? (
               <Input
                 ref={inputRef}
-                defaultValue={contact.email || ""}
-                onBlur={(e) => handleBlur(contact.id, "email", e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, contact.id, "email", e.currentTarget.value)}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => handleBlur(contact.id, "email")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "email")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
               <div
                 className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm truncate"
-                onClick={() => setEditingCell({ id: contact.id, field: "email" })}
+                onClick={() => startEditing(contact.id, "email", contact.email)}
               >
                 {contact.email || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
@@ -305,15 +313,16 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             {editingCell?.id === contact.id && editingCell?.field === "mobile_number" ? (
               <Input
                 ref={inputRef}
-                defaultValue={contact.mobile_number || ""}
-                onBlur={(e) => handleBlur(contact.id, "mobile_number", e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, contact.id, "mobile_number", e.currentTarget.value)}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => handleBlur(contact.id, "mobile_number")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "mobile_number")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
               <div
                 className="cursor-text px-3 py-1 min-h-[32px] flex items-center hover:bg-muted/50 text-sm truncate"
-                onClick={() => setEditingCell({ id: contact.id, field: "mobile_number" })}
+                onClick={() => startEditing(contact.id, "mobile_number", contact.mobile_number)}
               >
                 {contact.mobile_number || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
@@ -352,15 +361,16 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             {editingCell?.id === contact.id && editingCell?.field === "notes" ? (
               <Input
                 ref={inputRef}
-                defaultValue={contact.notes || ""}
-                onBlur={(e) => handleBlur(contact.id, "notes", e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, contact.id, "notes", e.currentTarget.value)}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => handleBlur(contact.id, "notes")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "notes")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
               <div
                 className="cursor-text px-3 py-1.5 min-h-[32px] flex-1 hover:bg-muted/50 text-sm whitespace-pre-wrap break-words"
-                onClick={() => setEditingCell({ id: contact.id, field: "notes" })}
+                onClick={() => startEditing(contact.id, "notes", contact.notes)}
               >
                 {contact.notes || <span className="text-muted-foreground/50 text-sm">Empty</span>}
               </div>
