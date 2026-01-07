@@ -1,123 +1,60 @@
-import { createClient } from "npm:@supabase/supabase-js@2"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 
 Deno.serve(async (req) => {
-  console.log('Import function called, method:', req.method)
-  
-  // Handle CORS preflight requests
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders, status: 204 })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing environment variables')
-      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
-    }
-    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const importData = await req.json()
-
-    console.log('Starting database import...')
-    console.log('Import version:', importData.version)
+    console.log('Importing database...')
 
     if (!importData.tables) {
-      throw new Error('Invalid import file format: missing tables property')
+      throw new Error('Invalid import file format')
     }
 
-    const results = {
-      contact_categories: { inserted: 0, errors: 0 },
-      contacts: { inserted: 0, errors: 0 },
-      email_templates: { inserted: 0, errors: 0 },
-      user_emails: { inserted: 0, errors: 0 },
+    const results = { categories: 0, contacts: 0, templates: 0, userEmails: 0 }
+
+    // Import categories first (contacts depend on them)
+    for (const item of importData.tables.contact_categories || []) {
+      const { error } = await supabase.from('contact_categories').upsert(item, { onConflict: 'id' })
+      if (!error) results.categories++
     }
 
-    // Import contact_categories first (since contacts depend on them)
-    if (importData.tables.contact_categories?.length > 0) {
-      for (const category of importData.tables.contact_categories) {
-        const { error } = await supabase
-          .from('contact_categories')
-          .upsert(category, { onConflict: 'id' })
-        
-        if (error) {
-          console.error('Error importing category:', error)
-          results.contact_categories.errors++
-        } else {
-          results.contact_categories.inserted++
-        }
-      }
+    for (const item of importData.tables.contacts || []) {
+      const { error } = await supabase.from('contacts').upsert(item, { onConflict: 'id' })
+      if (!error) results.contacts++
     }
 
-    // Import contacts
-    if (importData.tables.contacts?.length > 0) {
-      for (const contact of importData.tables.contacts) {
-        const { error } = await supabase
-          .from('contacts')
-          .upsert(contact, { onConflict: 'id' })
-        
-        if (error) {
-          console.error('Error importing contact:', error)
-          results.contacts.errors++
-        } else {
-          results.contacts.inserted++
-        }
-      }
+    for (const item of importData.tables.email_templates || []) {
+      const { error } = await supabase.from('email_templates').upsert(item, { onConflict: 'id' })
+      if (!error) results.templates++
     }
 
-    // Import email_templates
-    if (importData.tables.email_templates?.length > 0) {
-      for (const template of importData.tables.email_templates) {
-        const { error } = await supabase
-          .from('email_templates')
-          .upsert(template, { onConflict: 'id' })
-        
-        if (error) {
-          console.error('Error importing template:', error)
-          results.email_templates.errors++
-        } else {
-          results.email_templates.inserted++
-        }
-      }
+    for (const item of importData.tables.user_emails || []) {
+      const { error } = await supabase.from('user_emails').upsert(item, { onConflict: 'id' })
+      if (!error) results.userEmails++
     }
 
-    // Import user_emails
-    if (importData.tables.user_emails?.length > 0) {
-      for (const userEmail of importData.tables.user_emails) {
-        const { error } = await supabase
-          .from('user_emails')
-          .upsert(userEmail, { onConflict: 'id' })
-        
-        if (error) {
-          console.error('Error importing user email:', error)
-          results.user_emails.errors++
-        } else {
-          results.user_emails.inserted++
-        }
-      }
-    }
-
-    console.log('Import completed:', results)
+    console.log('Import done:', results)
 
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Import error:', error)
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: String(error) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
