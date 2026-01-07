@@ -20,11 +20,26 @@ const Navbar = () => {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('export-data');
-      
-      if (error) throw error;
+      // Query all tables directly from the client
+      const [categoriesRes, contactsRes, templatesRes, userEmailsRes] = await Promise.all([
+        supabase.from('contact_categories').select('*'),
+        supabase.from('contacts').select('*'),
+        supabase.from('email_templates').select('*'),
+        supabase.from('user_emails').select('*'),
+      ]);
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const exportData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        tables: {
+          contact_categories: categoriesRes.data || [],
+          contacts: contactsRes.data || [],
+          email_templates: templatesRes.data || [],
+          user_emails: userEmailsRes.data || [],
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -53,15 +68,43 @@ const Navbar = () => {
       const text = await file.text();
       const importData = JSON.parse(text);
 
-      const { data, error } = await supabase.functions.invoke('import-data', {
-        body: importData
-      });
+      if (!importData.tables) {
+        throw new Error('Invalid backup file format');
+      }
 
-      if (error) throw error;
+      // Import categories first (contacts depend on them)
+      if (importData.tables.contact_categories?.length > 0) {
+        for (const item of importData.tables.contact_categories) {
+          await supabase.from('contact_categories').upsert(item, { onConflict: 'id' });
+        }
+      }
+
+      // Import contacts
+      if (importData.tables.contacts?.length > 0) {
+        for (const item of importData.tables.contacts) {
+          await supabase.from('contacts').upsert(item, { onConflict: 'id' });
+        }
+      }
+
+      // Import email templates
+      if (importData.tables.email_templates?.length > 0) {
+        for (const item of importData.tables.email_templates) {
+          await supabase.from('email_templates').upsert(item, { onConflict: 'id' });
+        }
+      }
+
+      // Import user emails
+      if (importData.tables.user_emails?.length > 0) {
+        for (const item of importData.tables.user_emails) {
+          await supabase.from('user_emails').upsert(item, { onConflict: 'id' });
+        }
+      }
 
       toast.success('Database imported successfully!');
-      console.log('Import results:', data);
       setIsPopoverOpen(false);
+      
+      // Reload the page to show updated data
+      window.location.reload();
     } catch (error) {
       console.error('Import error:', error);
       toast.error('Failed to import database');
