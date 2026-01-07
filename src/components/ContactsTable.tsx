@@ -37,16 +37,16 @@ interface ColumnWidths {
 }
 
 const DEFAULT_WIDTHS: ColumnWidths = {
-  business_name: 200,
-  email: 180,
-  mobile: 140,
-  value: 120,
-  status: 120,
-  priority: 100,
-  follow_up: 160,
-  last_contacted: 160,
-  link: 180,
-  notes: 250,
+  business_name: 150,
+  email: 150,
+  mobile: 120,
+  value: 80,
+  status: 100,
+  priority: 80,
+  follow_up: 120,
+  last_contacted: 120,
+  link: 140,
+  notes: 180,
 };
 
 const COLUMN_LABELS: Record<ColumnKey, string> = {
@@ -1001,7 +1001,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   }
 
   return (
-    <div className="w-full overflow-x-auto border border-border rounded-lg">
+    <div className="w-full overflow-x-auto scrollbar-hide border border-border rounded-lg">
       {/* Header */}
       <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
         {columnOrder.map((columnKey, index) => {
