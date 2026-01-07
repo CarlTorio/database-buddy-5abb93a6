@@ -19,10 +19,10 @@ const Dashboard = () => {
                 Back to Home
               </Link>
             </Button>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
+            <h1 className="text-3xl font-bold text-foreground mb-2 text-center">
               User Credits Dashboard
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-center">
               Manage and monitor user credits and monthly allocations
             </p>
           </div>
