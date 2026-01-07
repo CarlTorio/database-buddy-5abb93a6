@@ -3,17 +3,29 @@ import { createClient } from "npm:@supabase/supabase-js@2"
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 Deno.serve(async (req) => {
+  console.log('Export function called, method:', req.method)
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders, status: 204 })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing environment variables')
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     console.log('Starting database export...')
@@ -26,18 +38,10 @@ Deno.serve(async (req) => {
       supabase.from('user_emails').select('*'),
     ])
 
-    if (categoriesResult.error) {
-      console.error('Error fetching categories:', categoriesResult.error)
-    }
-    if (contactsResult.error) {
-      console.error('Error fetching contacts:', contactsResult.error)
-    }
-    if (templatesResult.error) {
-      console.error('Error fetching templates:', templatesResult.error)
-    }
-    if (userEmailsResult.error) {
-      console.error('Error fetching user emails:', userEmailsResult.error)
-    }
+    if (categoriesResult.error) console.error('Categories error:', categoriesResult.error)
+    if (contactsResult.error) console.error('Contacts error:', contactsResult.error)
+    if (templatesResult.error) console.error('Templates error:', templatesResult.error)
+    if (userEmailsResult.error) console.error('User emails error:', userEmailsResult.error)
 
     const exportData = {
       version: '1.0',
@@ -51,10 +55,6 @@ Deno.serve(async (req) => {
     }
 
     console.log('Export completed successfully')
-    console.log(`Categories: ${exportData.tables.contact_categories.length}`)
-    console.log(`Contacts: ${exportData.tables.contacts.length}`)
-    console.log(`Templates: ${exportData.tables.email_templates.length}`)
-    console.log(`User Emails: ${exportData.tables.user_emails.length}`)
 
     return new Response(JSON.stringify(exportData, null, 2), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
