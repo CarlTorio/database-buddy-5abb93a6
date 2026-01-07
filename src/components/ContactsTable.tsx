@@ -136,6 +136,30 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     const storageKey = `contacts-column-order-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnOrder));
   }, [columnOrder, categoryId]);
+
+  // Load column widths from localStorage on mount and when categoryId changes
+  useEffect(() => {
+    const storageKey = `contacts-column-widths-${categoryId || 'default'}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed === 'object' && parsed !== null) {
+          setColumnWidths({ ...DEFAULT_WIDTHS, ...parsed });
+          return;
+        }
+      } catch (e) {
+        // Invalid JSON, use default
+      }
+    }
+    setColumnWidths(DEFAULT_WIDTHS);
+  }, [categoryId]);
+
+  // Save column widths to localStorage whenever they change
+  useEffect(() => {
+    const storageKey = `contacts-column-widths-${categoryId || 'default'}`;
+    localStorage.setItem(storageKey, JSON.stringify(columnWidths));
+  }, [columnWidths, categoryId]);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
