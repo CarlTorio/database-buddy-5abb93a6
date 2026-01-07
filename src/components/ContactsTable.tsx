@@ -113,9 +113,10 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
   const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(DEFAULT_COLUMN_ORDER);
 
-  // Load column order from localStorage when categoryId changes
+  // Load column order from localStorage on mount and when categoryId changes
   useEffect(() => {
-    const saved = localStorage.getItem(`contacts-column-order-${categoryId}`);
+    const storageKey = `contacts-column-order-${categoryId || 'default'}`;
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -129,6 +130,12 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     }
     setColumnOrder(DEFAULT_COLUMN_ORDER);
   }, [categoryId]);
+
+  // Save column order to localStorage whenever it changes
+  useEffect(() => {
+    const storageKey = `contacts-column-order-${categoryId || 'default'}`;
+    localStorage.setItem(storageKey, JSON.stringify(columnOrder));
+  }, [columnOrder, categoryId]);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
@@ -210,7 +217,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     newOrder.splice(targetIndex, 0, draggedColumn);
 
     setColumnOrder(newOrder);
-    localStorage.setItem(`contacts-column-order-${categoryId}`, JSON.stringify(newOrder));
     setDraggedColumn(null);
     setDragOverColumn(null);
   };
