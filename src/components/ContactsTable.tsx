@@ -8,13 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, CalendarIcon, Flag, GripVertical } from "lucide-react";
+import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, CalendarIcon, Flag, GripVertical, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EmailTemplate {
   subject: string;
@@ -473,6 +474,36 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     .filter((c) => c.status === "Completed")
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
+  // Duplicate detection for business_name, link, email, mobile
+  const findDuplicates = (field: "business_name" | "link" | "email" | "mobile_number", contactId: string, value: string | null) => {
+    if (!value || !value.trim()) return [];
+    const normalizedValue = value.trim().toLowerCase();
+    return contacts.filter(
+      (c) => {
+        const fieldValue = field === "mobile_number" ? c.mobile_number : c[field as keyof Contact];
+        return c.id !== contactId && 
+          fieldValue && 
+          typeof fieldValue === "string" && 
+          fieldValue.trim().toLowerCase() === normalizedValue;
+      }
+    );
+  };
+
+  const DuplicateWarning = ({ duplicates, fieldLabel }: { duplicates: Contact[], fieldLabel: string }) => {
+    if (duplicates.length === 0) return null;
+    const duplicateNames = duplicates.map(d => d.business_name || "Unnamed").join(", ");
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 cursor-help" />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[200px]">
+          <p className="text-xs">Duplicate {fieldLabel} found in: {duplicateNames}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   const ResizeHandle = ({ columnKey }: { columnKey: keyof ColumnWidths }) => (
     <div
       className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary active:bg-primary transition-colors z-10"
@@ -490,7 +521,8 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
       : { width: columnWidths[columnKey] };
 
     switch (columnKey) {
-      case "business_name":
+      case "business_name": {
+        const duplicates = findDuplicates("business_name", contact.id, contact.business_name);
         return (
           <div className={baseClass} style={style}>
             <div className="flex items-center gap-2 px-2 py-1.5 w-full">
@@ -505,18 +537,23 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                   className="h-6 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary text-sm"
                 />
               ) : (
-                <span
-                  className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm truncate"
-                  onClick={() => startEditing(contact.id, "business_name", contact.business_name)}
-                >
-                  {contact.business_name || <span className="text-muted-foreground/50 text-sm">Empty</span>}
-                </span>
+                <>
+                  <span
+                    className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm truncate"
+                    onClick={() => startEditing(contact.id, "business_name", contact.business_name)}
+                  >
+                    {contact.business_name || <span className="text-muted-foreground/50 text-sm">Empty</span>}
+                  </span>
+                  <DuplicateWarning duplicates={duplicates} fieldLabel="business name" />
+                </>
               )}
             </div>
           </div>
         );
+      }
 
-      case "link":
+      case "link": {
+        const duplicates = findDuplicates("link", contact.id, contact.link || null);
         return (
           <div className={baseClass} style={style}>
             {editingCell?.id === contact.id && editingCell?.field === "link" ? (
@@ -543,6 +580,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                     >
                       {contact.link}
                     </span>
+                    <DuplicateWarning duplicates={duplicates} fieldLabel="link" />
                     <ExternalLink 
                       className="w-3.5 h-3.5 text-muted-foreground shrink-0 cursor-pointer hover:text-primary" 
                       onClick={(e) => {
@@ -570,8 +608,10 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             )}
           </div>
         );
+      }
 
-      case "email":
+      case "email": {
+        const duplicates = findDuplicates("email", contact.id, contact.email);
         return (
           <div className={baseClass} style={style}>
             {editingCell?.id === contact.id && editingCell?.field === "email" ? (
@@ -593,6 +633,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                     >
                       {contact.email}
                     </span>
+                    <DuplicateWarning duplicates={duplicates} fieldLabel="email" />
                     <Mail
                       className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
                       onClick={(e) => {
@@ -613,8 +654,10 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             )}
           </div>
         );
+      }
 
-      case "mobile":
+      case "mobile": {
+        const duplicates = findDuplicates("mobile_number", contact.id, contact.mobile_number);
         return (
           <div className={baseClass} style={style}>
             {editingCell?.id === contact.id && editingCell?.field === "mobile_number" ? (
@@ -636,6 +679,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                     >
                       {contact.mobile_number}
                     </span>
+                    <DuplicateWarning duplicates={duplicates} fieldLabel="mobile" />
                     <Phone
                       className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
                       onClick={(e) => {
@@ -656,6 +700,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
             )}
           </div>
         );
+      }
 
       case "value":
         return (
