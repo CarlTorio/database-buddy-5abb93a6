@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import {
@@ -294,7 +294,10 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     }
   };
 
-  const handleUpdate = async (id: string, field: string, value: string) => {
+  // Ref to track pending saves for debounce
+  const pendingSaveRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+
+  const handleUpdate = useCallback(async (id: string, field: string, value: string, immediate = false) => {
     let updateValue: string | number | null;
     if (field === "status") {
       updateValue = value;
@@ -305,19 +308,41 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
       updateValue = value.trim() || null;
     }
     
-    const { error } = await supabase
-      .from("contacts")
-      .update({ [field]: updateValue, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    // Optimistic update - update UI immediately
+    setContacts(prev =>
+      prev.map((c) =>
+        c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
+      )
+    );
 
-    if (!error) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
-        )
-      );
+    const saveKey = `${id}-${field}`;
+    
+    // Clear any pending save for this field
+    if (pendingSaveRef.current[saveKey]) {
+      clearTimeout(pendingSaveRef.current[saveKey]);
     }
-  };
+
+    const performSave = async () => {
+      const { error } = await supabase
+        .from("contacts")
+        .update({ [field]: updateValue, updated_at: new Date().toISOString() })
+        .eq("id", id);
+
+      if (error) {
+        console.error("Failed to save:", error);
+        toast.error("Failed to save changes");
+      }
+      delete pendingSaveRef.current[saveKey];
+    };
+
+    if (immediate) {
+      // Save immediately (on blur or enter)
+      await performSave();
+    } else {
+      // Debounce save (while typing) - 500ms delay
+      pendingSaveRef.current[saveKey] = setTimeout(performSave, 500);
+    }
+  }, []);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("contacts").delete().eq("id", id);
@@ -336,7 +361,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   };
 
   const handleBlur = (id: string, field: string) => {
-    handleUpdate(id, field, editValue);
+    handleUpdate(id, field, editValue, true); // immediate save on blur
     setEditingCell(null);
 
     if (newRowId === id && !editValue.trim() && field === "business_name") {
@@ -350,12 +375,20 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
 
   const handleKeyDown = (e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === "Enter") {
-      handleBlur(id, field);
+      handleUpdate(id, field, editValue, true); // immediate save on enter
+      setEditingCell(null);
+      setNewRowId(null);
     }
     if (e.key === "Escape") {
       setEditingCell(null);
       setNewRowId(null);
     }
+  };
+
+  // Auto-save while typing (debounced)
+  const handleInputChange = (id: string, field: string, value: string) => {
+    setEditValue(value);
+    handleUpdate(id, field, value, false); // debounced save
   };
 
   const openGmailCompose = async (email: string, contactId: string) => {
@@ -531,7 +564,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 <Input
                   ref={inputRef}
                   value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
+                  onChange={(e) => handleInputChange(contact.id, "business_name", e.target.value)}
                   onBlur={() => handleBlur(contact.id, "business_name")}
                   onKeyDown={(e) => handleKeyDown(e, contact.id, "business_name")}
                   className="h-6 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary text-sm"
@@ -560,7 +593,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               <Input
                 ref={inputRef}
                 value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
+                onChange={(e) => handleInputChange(contact.id, "link", e.target.value)}
                 onBlur={() => handleBlur(contact.id, "link")}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "link")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
@@ -618,7 +651,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               <Input
                 ref={inputRef}
                 value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
+                onChange={(e) => handleInputChange(contact.id, "email", e.target.value)}
                 onBlur={() => handleBlur(contact.id, "email")}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "email")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
@@ -664,7 +697,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               <Input
                 ref={inputRef}
                 value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
+                onChange={(e) => handleInputChange(contact.id, "mobile_number", e.target.value)}
                 onBlur={() => handleBlur(contact.id, "mobile_number")}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "mobile_number")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
@@ -709,7 +742,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               <Input
                 ref={inputRef}
                 value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
+                onChange={(e) => handleInputChange(contact.id, "value", e.target.value)}
                 onBlur={() => handleBlur(contact.id, "value")}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "value")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
@@ -735,7 +768,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
           <div className={baseClass} style={style}>
             <Select
               value={contact.status}
-              onValueChange={(value) => handleUpdate(contact.id, "status", value)}
+              onValueChange={(value) => handleUpdate(contact.id, "status", value, true)}
             >
               <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
                 <SelectValue>
@@ -858,7 +891,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
               <Input
                 ref={inputRef}
                 value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
+                onChange={(e) => handleInputChange(contact.id, "notes", e.target.value)}
                 onBlur={() => handleBlur(contact.id, "notes")}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "notes")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
