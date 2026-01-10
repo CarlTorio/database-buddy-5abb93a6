@@ -4,30 +4,18 @@ import { Menu, X, Download, Upload } from "lucide-react";
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handleExport = async () => {
     setIsExporting(true);
     try {
       // Query all tables directly from the client
-      const [categoriesRes, contactsRes, templatesRes, userEmailsRes] = await Promise.all([
-        supabase.from('contact_categories').select('*'),
-        supabase.from('contacts').select('*'),
-        supabase.from('email_templates').select('*'),
-        supabase.from('user_emails').select('*'),
-      ]);
-
+      const [categoriesRes, contactsRes, templatesRes, userEmailsRes] = await Promise.all([supabase.from('contact_categories').select('*'), supabase.from('contacts').select('*'), supabase.from('email_templates').select('*'), supabase.from('user_emails').select('*')]);
       const exportData = {
         version: '1.0',
         exportedAt: new Date().toISOString(),
@@ -35,11 +23,12 @@ const Navbar = () => {
           contact_categories: categoriesRes.data || [],
           contacts: contactsRes.data || [],
           email_templates: templatesRes.data || [],
-          user_emails: userEmailsRes.data || [],
+          user_emails: userEmailsRes.data || []
         }
       };
-
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json'
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -48,7 +37,6 @@ const Navbar = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
       toast.success('Database exported successfully!');
       setIsPopoverOpen(false);
     } catch (error) {
@@ -58,16 +46,13 @@ const Navbar = () => {
       setIsExporting(false);
     }
   };
-
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     setIsImporting(true);
     try {
       const text = await file.text();
       const importData = JSON.parse(text);
-
       if (!importData.tables) {
         throw new Error('Invalid backup file format');
       }
@@ -75,34 +60,41 @@ const Navbar = () => {
       // Import categories first (contacts depend on them)
       if (importData.tables.contact_categories?.length > 0) {
         for (const item of importData.tables.contact_categories) {
-          await supabase.from('contact_categories').upsert(item, { onConflict: 'id' });
+          await supabase.from('contact_categories').upsert(item, {
+            onConflict: 'id'
+          });
         }
       }
 
       // Import contacts
       if (importData.tables.contacts?.length > 0) {
         for (const item of importData.tables.contacts) {
-          await supabase.from('contacts').upsert(item, { onConflict: 'id' });
+          await supabase.from('contacts').upsert(item, {
+            onConflict: 'id'
+          });
         }
       }
 
       // Import email templates
       if (importData.tables.email_templates?.length > 0) {
         for (const item of importData.tables.email_templates) {
-          await supabase.from('email_templates').upsert(item, { onConflict: 'id' });
+          await supabase.from('email_templates').upsert(item, {
+            onConflict: 'id'
+          });
         }
       }
 
       // Import user emails
       if (importData.tables.user_emails?.length > 0) {
         for (const item of importData.tables.user_emails) {
-          await supabase.from('user_emails').upsert(item, { onConflict: 'id' });
+          await supabase.from('user_emails').upsert(item, {
+            onConflict: 'id'
+          });
         }
       }
-
       toast.success('Database imported successfully!');
       setIsPopoverOpen(false);
-      
+
       // Reload the page to show updated data
       window.location.reload();
     } catch (error) {
@@ -115,47 +107,28 @@ const Navbar = () => {
       }
     }
   };
-
   return <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
-                <span className="text-xl font-bold text-foreground">LogiCode</span>
+                <span className="text-xl font-bold text-foreground">LogiCodeManagement</span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-64 p-4" align="start">
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm text-foreground">Data Management</h4>
                 <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={handleExport}
-                    disabled={isExporting}
-                  >
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleExport} disabled={isExporting}>
                     <Download className="w-4 h-4 mr-2" />
                     {isExporting ? 'Exporting...' : 'Backup Data'}
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isImporting}
-                  >
+                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
                     <Upload className="w-4 h-4 mr-2" />
                     {isImporting ? 'Importing...' : 'Restore Data'}
                   </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleImport}
-                    className="hidden"
-                  />
+                  <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
                 </div>
               </div>
             </PopoverContent>
