@@ -43,8 +43,11 @@ const HeroSection = () => {
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="border-white/20 hover:bg-white/5">
-              <Link to="/compensation">Compensation Portal</Link>
+            <Button asChild size="lg" className="glow-effect group">
+              <Link to="/compensation">
+                Compensation Portal
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </Button>
           </div>
         </div>
