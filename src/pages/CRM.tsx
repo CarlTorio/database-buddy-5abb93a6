@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ArrowLeft, Trash2 } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, LayoutGrid, Table } from "lucide-react";
 import ContactsTable from "@/components/ContactsTable";
+import SalesPipeline from "@/components/SalesPipeline";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Category {
   id: string;
@@ -86,11 +88,31 @@ const CRM = () => {
             <h1 className="text-3xl font-bold text-foreground mb-6">
               {selectedCategory.name}
             </h1>
-            <ContactsTable
-              categoryId={selectedCategory.id}
-              isAdding={isAddingContact}
-              onAddingChange={setIsAddingContact}
-            />
+            
+            <Tabs defaultValue="pipeline" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="pipeline" className="gap-2">
+                  <LayoutGrid className="w-4 h-4" />
+                  Sales Pipeline
+                </TabsTrigger>
+                <TabsTrigger value="table" className="gap-2">
+                  <Table className="w-4 h-4" />
+                  Table View
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="pipeline">
+                <SalesPipeline categoryId={selectedCategory.id} />
+              </TabsContent>
+              
+              <TabsContent value="table">
+                <ContactsTable
+                  categoryId={selectedCategory.id}
+                  isAdding={isAddingContact}
+                  onAddingChange={setIsAddingContact}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
         <Footer />
