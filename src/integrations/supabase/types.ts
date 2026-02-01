@@ -34,58 +34,55 @@ export type Database = {
       }
       contacts: {
         Row: {
-          assigned_to: string | null
-          attempts: number
           business_name: string
           category_id: string
           contact_count: number
-          contact_name: string | null
           created_at: string
           email: string | null
+          follow_up_at: string | null
           id: string
           last_contacted_at: string | null
-          lead_source: string | null
           link: string | null
           mobile_number: string | null
           notes: string | null
-          sales_stage: string | null
+          priority_level: string | null
+          status: string
           updated_at: string
+          value: number | null
         }
         Insert: {
-          assigned_to?: string | null
-          attempts?: number
           business_name?: string
           category_id: string
           contact_count?: number
-          contact_name?: string | null
           created_at?: string
           email?: string | null
+          follow_up_at?: string | null
           id?: string
           last_contacted_at?: string | null
-          lead_source?: string | null
           link?: string | null
           mobile_number?: string | null
           notes?: string | null
-          sales_stage?: string | null
+          priority_level?: string | null
+          status?: string
           updated_at?: string
+          value?: number | null
         }
         Update: {
-          assigned_to?: string | null
-          attempts?: number
           business_name?: string
           category_id?: string
           contact_count?: number
-          contact_name?: string | null
           created_at?: string
           email?: string | null
+          follow_up_at?: string | null
           id?: string
           last_contacted_at?: string | null
-          lead_source?: string | null
           link?: string | null
           mobile_number?: string | null
           notes?: string | null
-          sales_stage?: string | null
+          priority_level?: string | null
+          status?: string
           updated_at?: string
+          value?: number | null
         }
         Relationships: [
           {
