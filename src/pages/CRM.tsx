@@ -101,8 +101,8 @@ const CRM = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="flex-1 pt-20 px-4">
-        <div className="max-w-4xl mx-auto">
+      <main className="flex-1 pt-20 px-4 lg:px-8">
+        <div className="w-full">
           <div className="mb-8">
             <div className="text-center">
               <h1 className="text-3xl font-bold text-foreground">
@@ -135,7 +135,7 @@ const CRM = () => {
             </CardContent>
           </Card>
 
-          {/* Categories Grid */}
+          {/* Categories List */}
           {loading ? (
             <div className="text-center text-muted-foreground py-12">
               Loading categories...
@@ -145,34 +145,34 @@ const CRM = () => {
               No categories yet. Create one above to get started!
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-3">
               {categories.map((category) => (
                 <Card
                   key={category.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors group relative"
+                  className="cursor-pointer hover:border-primary/50 transition-colors group"
+                  onClick={() => setSelectedCategory(category)}
                 >
-                  <CardContent
-                    className="p-6"
-                    onClick={() => setSelectedCategory(category)}
-                  >
-                    <h3 className="text-xl font-semibold text-foreground">
-                      {category.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Click to manage contacts
-                    </p>
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {category.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Click to manage contacts
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(category.id);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </CardContent>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteCategory(category.id);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </Card>
               ))}
             </div>
