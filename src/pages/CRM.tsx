@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import ContactsTable from "@/components/ContactsTable";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
+import SalesPipeline from "@/components/SalesPipeline";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -177,6 +178,9 @@ const CRM = () => {
               ))}
             </div>
           )}
+
+          {/* Sales Pipeline */}
+          <SalesPipeline />
         </div>
       </main>
       <Footer />
