@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          business_name: string
+          category_id: string
+          contact_count: number
+          created_at: string
+          email: string | null
+          follow_up_at: string | null
+          id: string
+          last_contacted_at: string | null
+          link: string | null
+          mobile_number: string | null
+          notes: string | null
+          priority_level: string | null
+          status: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          business_name?: string
+          category_id: string
+          contact_count?: number
+          created_at?: string
+          email?: string | null
+          follow_up_at?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          link?: string | null
+          mobile_number?: string | null
+          notes?: string | null
+          priority_level?: string | null
+          status?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          business_name?: string
+          category_id?: string
+          contact_count?: number
+          created_at?: string
+          email?: string | null
+          follow_up_at?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          link?: string | null
+          mobile_number?: string | null
+          notes?: string | null
+          priority_level?: string | null
+          status?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "contact_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          name: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          name: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_accounts: {
         Row: {
           created_at: string
