@@ -1,21 +1,75 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Download, Upload } from "lucide-react";
+import { Menu, X, Download, Upload, RefreshCw, LogOut } from "lucide-react";
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import UserBadge from "@/components/UserBadge";
+import { useAuth } from "@/contexts/AuthContext";
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [showQuickMenu, setShowQuickMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+  
+  // Triple-click detection
+  const clickCountRef = useRef(0);
+  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoClick = () => {
+    if (!isAuthenticated) return;
+    
+    clickCountRef.current++;
+    
+    if (clickCountRef.current === 3) {
+      setShowQuickMenu(true);
+      clickCountRef.current = 0;
+    }
+    
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+    }
+    clickTimerRef.current = setTimeout(() => {
+      clickCountRef.current = 0;
+    }, 500);
+  };
+
+  const handleSwitchRole = () => {
+    logout();
+    navigate("/login", { replace: true });
+    setShowQuickMenu(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+    navigate("/login", { replace: true });
+    setShowQuickMenu(false);
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
       // Query all tables directly from the client
-      const [categoriesRes, contactsRes, templatesRes, userEmailsRes] = await Promise.all([supabase.from('contact_categories').select('*'), supabase.from('contacts').select('*'), supabase.from('email_templates').select('*'), supabase.from('user_emails').select('*')]);
+      const [categoriesRes, contactsRes, templatesRes, userEmailsRes] = await Promise.all([
+        supabase.from('contact_categories').select('*'),
+        supabase.from('contacts').select('*'),
+        supabase.from('email_templates').select('*'),
+        supabase.from('user_emails').select('*')
+      ]);
       const exportData = {
         version: '1.0',
         exportedAt: new Date().toISOString(),
@@ -46,6 +100,7 @@ const Navbar = () => {
       setIsExporting(false);
     }
   };
+
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -107,53 +162,61 @@ const Navbar = () => {
       }
     }
   };
-  return <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/10">
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
-                <span className="text-xl font-bold text-foreground">LogiCodeManagement</span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-4" align="start">
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm text-foreground">Data Management</h4>
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleExport} disabled={isExporting}>
-                    <Download className="w-4 h-4 mr-2" />
-                    {isExporting ? 'Exporting...' : 'Backup Data'}
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    {isImporting ? 'Importing...' : 'Restore Data'}
-                  </Button>
-                  <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+          {/* Logo with Data Management Popover and Triple-Click */}
+          <div className="flex items-center gap-2">
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+                  onClick={handleLogoClick}
+                >
+                  <span className="text-xl font-bold text-foreground">LogiCodeManagement</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4" align="start">
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm text-foreground">Data Management</h4>
+                  <div className="space-y-2">
+                    <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleExport} disabled={isExporting}>
+                      <Download className="w-4 h-4 mr-2" />
+                      {isExporting ? 'Exporting...' : 'Backup Data'}
+                    </Button>
+                    <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {isImporting ? 'Importing...' : 'Restore Data'}
+                    </Button>
+                    <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+                  </div>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
-              Home
-            </Link>
-            <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-              Dashboard
-            </Link>
-            <a href="#tools" className="text-muted-foreground hover:text-foreground transition-colors">
-              Tools
-            </a>
-            <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">
-              About
-            </a>
+            {/* Quick Menu (Triple-click activated) */}
+            <DropdownMenu open={showQuickMenu} onOpenChange={setShowQuickMenu}>
+              <DropdownMenuTrigger asChild>
+                <div className="hidden" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={handleSwitchRole}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Switch Role
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          <div className="hidden md:block">
-            <Button asChild className="glow-effect">
-              <Link to="/dashboard">Get Started</Link>
-            </Button>
+          {/* Desktop: User Badge */}
+          <div className="hidden md:flex items-center gap-4">
+            {isAuthenticated && <UserBadge />}
           </div>
 
           {/* Mobile menu button */}
@@ -163,26 +226,18 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Navigation */}
-        {isOpen && <div className="md:hidden py-4 space-y-4 animate-fade-in">
-            <Link to="/" className="block text-muted-foreground hover:text-foreground transition-colors" onClick={() => setIsOpen(false)}>
-              Home
-            </Link>
-            <Link to="/dashboard" className="block text-muted-foreground hover:text-foreground transition-colors" onClick={() => setIsOpen(false)}>
-              Dashboard
-            </Link>
-            <a href="#tools" className="block text-muted-foreground hover:text-foreground transition-colors" onClick={() => setIsOpen(false)}>
-              Tools
-            </a>
-            <a href="#about" className="block text-muted-foreground hover:text-foreground transition-colors" onClick={() => setIsOpen(false)}>
-              About
-            </a>
-            <Button asChild className="w-full glow-effect">
-              <Link to="/dashboard" onClick={() => setIsOpen(false)}>
-                Get Started
-              </Link>
-            </Button>
-          </div>}
+        {isOpen && (
+          <div className="md:hidden py-4 space-y-4 animate-fade-in">
+            {isAuthenticated && (
+              <div className="pb-4 border-b border-border">
+                <UserBadge />
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    </nav>;
+    </nav>
+  );
 };
+
 export default Navbar;

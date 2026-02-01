@@ -30,10 +30,10 @@ import {
   DollarSign,
   Briefcase,
   Target,
-  ArrowLeft,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 // Employee types and commission rates
 const COMMISSION_RATES = {
@@ -171,21 +171,16 @@ const Compensation = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      
+      {/* Sub Header */}
+      <div className="border-b bg-card/50 backdrop-blur-sm pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/">
-                  <ArrowLeft className="h-5 w-5" />
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Compensation Portal</h1>
-                <p className="text-muted-foreground text-sm">Track salaries, commissions & company earnings</p>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Compensation Portal</h1>
+              <p className="text-muted-foreground text-sm">Track salaries, commissions & company earnings</p>
             </div>
             <div className="flex items-center gap-3">
               <Select value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
@@ -538,6 +533,8 @@ const Compensation = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 };
