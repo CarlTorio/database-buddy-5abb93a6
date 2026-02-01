@@ -14,6 +14,10 @@ import {
 import { Code, Users, Shield, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth, validatePassword, UserRole } from "@/contexts/AuthContext";
+import Navbar from "@/components/Navbar";
+import FeaturesSection from "@/components/FeaturesSection";
+import ToolsSection from "@/components/ToolsSection";
+import Footer from "@/components/Footer";
 
 const ROLE_ROUTES: Record<UserRole, string> = {
   developer: "/dashboard",
@@ -108,71 +112,80 @@ const Login = () => {
   };
 
   return (
-    <section className="min-h-screen flex items-center justify-center pt-16 relative overflow-hidden bg-background">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-glow" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: "1s" }} />
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      
+      {/* Hero Section with Login */}
+      <section className="min-h-screen flex items-center justify-center pt-16 relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-glow" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: "1s" }} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center space-y-8">
-          {/* Logo - Triple Click for Admin */}
-          <button
-            onClick={handleLogoClick}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer select-none"
-          >
-            LogiCode.PH
-          </button>
-
-          {/* Main Heading */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground animate-fade-in" style={{ animationDelay: "0.1s" }}>
-            Data & Account  
-            <span className="block text-gradient bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent pb-[8px]">
-              Management Hub
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            Private workspace for our team to manage data, track credits, and access internal tools.
-          </p>
-
-          {/* Role Selection Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-            <Button 
-              size="lg" 
-              className="glow-effect group w-[220px] justify-center bg-blue-600 hover:bg-blue-700"
-              onClick={() => handleRoleSelect("developer")}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center space-y-8">
+            {/* Logo - Triple Click for Admin */}
+            <button
+              onClick={handleLogoClick}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer select-none"
             >
-              <Code className="w-4 h-4 mr-2" />
-              I'm a Developer
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <Button 
-              size="lg" 
-              className="group w-[220px] justify-center bg-green-600 hover:bg-green-700"
-              onClick={() => handleRoleSelect("salesAgent")}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              I'm a Sales Agent
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            
-            {/* Admin Button (Hidden by default) */}
-            {showAdminButton && (
+              LogiCode.PH
+            </button>
+
+            {/* Main Heading */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground animate-fade-in" style={{ animationDelay: "0.1s" }}>
+              Data & Account  
+              <span className="block text-gradient bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent pb-[8px]">
+                Management Hub
+              </span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
+              Private workspace for our team to manage data, track credits, and access internal tools.
+            </p>
+
+            {/* Role Selection Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
               <Button 
                 size="lg" 
-                className="group w-[220px] justify-center bg-purple-600 hover:bg-purple-700 animate-in fade-in slide-in-from-bottom-4 duration-300"
-                onClick={() => handleRoleSelect("admin")}
+                className="glow-effect group w-[220px] justify-center bg-blue-600 hover:bg-blue-700"
+                onClick={() => handleRoleSelect("developer")}
               >
-                <Shield className="w-4 h-4 mr-2" />
-                Admin Login
+                <Code className="w-4 h-4 mr-2" />
+                I'm a Developer
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
-            )}
+              <Button 
+                size="lg" 
+                className="group w-[220px] justify-center bg-green-600 hover:bg-green-700"
+                onClick={() => handleRoleSelect("salesAgent")}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                I'm a Sales Agent
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              
+              {/* Admin Button (Hidden by default) */}
+              {showAdminButton && (
+                <Button 
+                  size="lg" 
+                  className="group w-[220px] justify-center bg-purple-600 hover:bg-purple-700 animate-in fade-in slide-in-from-bottom-4 duration-300"
+                  onClick={() => handleRoleSelect("admin")}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Admin Login
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <FeaturesSection />
+      <ToolsSection />
+      <Footer />
 
       {/* Password Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -237,7 +250,7 @@ const Login = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   );
 };
 
