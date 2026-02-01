@@ -11,12 +11,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Code, Users, Shield, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Code, Users, Shield, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth, validatePassword, UserRole } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
-
-
 import Footer from "@/components/Footer";
 import backgroundImage from "@/assets/background.png";
 import logoImage from "@/assets/logo.png";
@@ -44,6 +42,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [showAdminButton, setShowAdminButton] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,21 +86,32 @@ const Login = () => {
     setIsModalOpen(true);
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!selectedRole) return;
     
-    if (validatePassword(selectedRole, password)) {
-      login(selectedRole, password, rememberMe);
-      toast.success(`Welcome, ${password.toUpperCase()}!`);
-      navigate(ROLE_ROUTES[selectedRole], { replace: true });
-    } else {
-      setError("Incorrect password. Please try again.");
-      setPassword("");
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const result = await validatePassword(selectedRole, password);
+      
+      if (result.valid && result.displayName) {
+        login(selectedRole, password, rememberMe, result.displayName);
+        toast.success(`Welcome, ${result.displayName}!`);
+        navigate(ROLE_ROUTES[selectedRole], { replace: true });
+      } else {
+        setError("Incorrect password. Please try again.");
+        setPassword("");
+      }
+    } catch {
+      setError("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isLoading) {
       handleLogin();
     }
   };
@@ -247,11 +257,18 @@ const Login = () => {
           </div>
 
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={closeModal}>
+            <Button variant="outline" onClick={closeModal} disabled={isLoading}>
               Cancel
             </Button>
-            <Button onClick={handleLogin} disabled={!password}>
-              Login
+            <Button onClick={handleLogin} disabled={!password || isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

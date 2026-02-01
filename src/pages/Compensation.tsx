@@ -34,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import AccountsManagement from "@/components/AccountsManagement";
 
 // Employee types and commission rates
 const COMMISSION_RATES = {
@@ -532,6 +533,9 @@ const Compensation = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Account Management Section */}
+        <AccountsManagement />
       </div>
       
       <Footer />
