@@ -69,7 +69,7 @@ const CRM = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <main className="flex-1 pt-20 px-4 lg:px-8">
+        <main className="flex-1 pt-20 px-4 lg:px-8 pb-8">
           <div className="w-full">
             <div className="flex items-center justify-between mb-4">
               <Button
@@ -87,11 +87,9 @@ const CRM = () => {
             <h1 className="text-3xl font-bold text-foreground mb-6">
               {selectedCategory.name}
             </h1>
-            <ContactsTable
-              categoryId={selectedCategory.id}
-              isAdding={isAddingContact}
-              onAddingChange={setIsAddingContact}
-            />
+            
+            {/* Sales Pipeline */}
+            <SalesPipeline categoryId={selectedCategory.id} />
           </div>
         </main>
         <Footer />
@@ -178,9 +176,6 @@ const CRM = () => {
               ))}
             </div>
           )}
-
-          {/* Sales Pipeline */}
-          <SalesPipeline />
         </div>
       </main>
       <Footer />
