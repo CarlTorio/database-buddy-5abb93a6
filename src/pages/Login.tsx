@@ -142,7 +142,7 @@ const Login = () => {
 
             {/* Main Heading */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground animate-fade-in" style={{ animationDelay: "0.1s" }}>
-              Data & Account  
+              Internal Data  
               <span className="block text-gradient bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent pb-[8px]">
                 Management Hub
               </span>
@@ -150,7 +150,7 @@ const Login = () => {
 
             {/* Subtitle */}
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
-              Private workspace for our team to manage data, track credits, and access internal tools.
+              Secure workspace for developers, sales agents, and admin to manage projects and track performance.
             </p>
 
             {/* Role Selection Buttons */}
@@ -161,7 +161,7 @@ const Login = () => {
                 onClick={() => handleRoleSelect("developer")}
               >
                 <Code className="w-4 h-4 mr-2" />
-                I'm a Developer
+                Dev Team
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button 
@@ -170,7 +170,7 @@ const Login = () => {
                 onClick={() => handleRoleSelect("salesAgent")}
               >
                 <Users className="w-4 h-4 mr-2" />
-                I'm a Sales Agent
+                Sales Team
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
               
