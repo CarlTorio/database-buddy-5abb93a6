@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Menu, X, RefreshCw, LogOut } from "lucide-react";
+import { Menu, X, RefreshCw, LogOut, Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ const Navbar = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   
   const { isAuthenticated, logout, login } = useAuth();
   const navigate = useNavigate();
@@ -65,20 +66,31 @@ const Navbar = () => {
     }, 500);
   };
 
-  const handleAdminLogin = () => {
-    if (validatePassword("admin", password)) {
-      login("admin", password, rememberMe);
-      toast.success(`Welcome, ${password.toUpperCase()}!`);
-      setIsAdminModalOpen(false);
-      navigate("/compensation", { replace: true });
-    } else {
-      setError("Incorrect password. Please try again.");
-      setPassword("");
+  const handleAdminLogin = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const result = await validatePassword("admin", password);
+      
+      if (result.valid && result.displayName) {
+        login("admin", password, rememberMe, result.displayName);
+        toast.success(`Welcome, ${result.displayName}!`);
+        setIsAdminModalOpen(false);
+        navigate("/compensation", { replace: true });
+      } else {
+        setError("Incorrect password. Please try again.");
+        setPassword("");
+      }
+    } catch {
+      setError("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isLoading) {
       handleAdminLogin();
     }
   };
@@ -206,11 +218,18 @@ const Navbar = () => {
           </div>
 
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAdminModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsAdminModalOpen(false)} disabled={isLoading}>
               Cancel
             </Button>
-            <Button onClick={handleAdminLogin} disabled={!password}>
-              Login
+            <Button onClick={handleAdminLogin} disabled={!password || isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

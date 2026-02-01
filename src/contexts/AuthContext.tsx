@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export type UserRole = "developer" | "salesAgent" | "admin";
 
@@ -7,31 +7,74 @@ interface AuthContextType {
   userRole: UserRole | null;
   userName: string | null;
   isAuthenticated: boolean;
-  login: (role: UserRole, password: string, rememberMe: boolean) => void;
+  login: (role: UserRole, password: string, rememberMe: boolean, displayName?: string) => void;
   logout: () => void;
   checkSession: () => boolean;
+  validateCredentials: (role: UserRole, password: string) => Promise<{ valid: boolean; displayName: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PASSWORDS: Record<UserRole, string[]> = {
-  developer: ["DEVTORIO", "DEVRONA"],
-  salesAgent: ["SALESALVIN", "SALESSHIAN"],
-  admin: ["ADMIN123"],
-};
+// Admin passwords are still hardcoded
+const ADMIN_PASSWORDS = ["ADMIN123"];
 
-export const validatePassword = (role: UserRole, password: string): boolean => {
-  return PASSWORDS[role].includes(password.toUpperCase());
-};
-
-export const getRoleFromPassword = (password: string): { role: UserRole; valid: boolean } | null => {
+export const validatePassword = async (role: UserRole, password: string): Promise<{ valid: boolean; displayName: string | null }> => {
   const upperPassword = password.toUpperCase();
-  for (const [role, passwords] of Object.entries(PASSWORDS)) {
-    if (passwords.includes(upperPassword)) {
-      return { role: role as UserRole, valid: true };
+  
+  // Admin check - hardcoded passwords
+  if (role === "admin") {
+    if (ADMIN_PASSWORDS.includes(upperPassword)) {
+      return { valid: true, displayName: upperPassword };
     }
+    return { valid: false, displayName: null };
   }
-  return null;
+  
+  // Developer and Sales Agent - check database
+  try {
+    const { data, error } = await supabase
+      .from("user_accounts")
+      .select("full_name, role")
+      .eq("password", upperPassword)
+      .eq("role", role)
+      .maybeSingle();
+
+    if (error || !data) {
+      return { valid: false, displayName: null };
+    }
+
+    // Get first name
+    const firstName = data.full_name.split(" ")[0];
+    return { valid: true, displayName: firstName };
+  } catch {
+    return { valid: false, displayName: null };
+  }
+};
+
+export const getRoleFromPassword = async (password: string): Promise<{ role: UserRole; valid: boolean; displayName: string } | null> => {
+  const upperPassword = password.toUpperCase();
+  
+  // Check admin first
+  if (ADMIN_PASSWORDS.includes(upperPassword)) {
+    return { role: "admin", valid: true, displayName: upperPassword };
+  }
+  
+  // Check database for dev/sales
+  try {
+    const { data, error } = await supabase
+      .from("user_accounts")
+      .select("full_name, role")
+      .eq("password", upperPassword)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    const firstName = data.full_name.split(" ")[0];
+    return { role: data.role as UserRole, valid: true, displayName: firstName };
+  } catch {
+    return null;
+  }
 };
 
 interface AuthProviderProps {
@@ -71,9 +114,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkSession();
   }, [checkSession]);
 
-  const login = (role: UserRole, password: string, rememberMe: boolean) => {
+  const login = (role: UserRole, password: string, rememberMe: boolean, displayName?: string) => {
+    const nameToStore = displayName || password.toUpperCase();
+    
     localStorage.setItem("userRole", role);
-    localStorage.setItem("userName", password.toUpperCase());
+    localStorage.setItem("userName", nameToStore);
     
     if (rememberMe) {
       // Set expiry to 30 days from now
@@ -87,7 +132,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     setUserRole(role);
-    setUserName(password.toUpperCase());
+    setUserName(nameToStore);
     setIsAuthenticated(true);
   };
 
@@ -98,8 +143,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  const validateCredentials = async (role: UserRole, password: string) => {
+    return validatePassword(role, password);
+  };
+
   return (
-    <AuthContext.Provider value={{ userRole, userName, isAuthenticated, login, logout, checkSession }}>
+    <AuthContext.Provider value={{ userRole, userName, isAuthenticated, login, logout, checkSession, validateCredentials }}>
       {children}
     </AuthContext.Provider>
   );
