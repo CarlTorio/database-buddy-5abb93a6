@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { useAuth, validatePassword, UserRole } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import FeaturesSection from "@/components/FeaturesSection";
-import ToolsSection from "@/components/ToolsSection";
+
 import Footer from "@/components/Footer";
 import backgroundImage from "@/assets/background.png";
 import logoImage from "@/assets/logo.png";
@@ -192,7 +192,6 @@ const Login = () => {
       </section>
 
       <FeaturesSection />
-      <ToolsSection />
       <Footer />
 
       {/* Password Modal */}
