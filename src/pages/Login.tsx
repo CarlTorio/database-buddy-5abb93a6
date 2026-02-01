@@ -15,7 +15,7 @@ import { Code, Users, Shield, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth, validatePassword, UserRole } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
-import FeaturesSection from "@/components/FeaturesSection";
+
 
 import Footer from "@/components/Footer";
 import backgroundImage from "@/assets/background.png";
@@ -191,7 +191,6 @@ const Login = () => {
         </div>
       </section>
 
-      <FeaturesSection />
       <Footer />
 
       {/* Password Modal */}
