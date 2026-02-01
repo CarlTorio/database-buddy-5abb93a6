@@ -100,9 +100,11 @@ interface ContactsTableProps {
   categoryId: string;
   isAdding?: boolean;
   onAddingChange?: (isAdding: boolean) => void;
+  phase?: "lead" | "presentation" | "conversion";
+  title?: string;
 }
 
-const ContactsTable = ({ categoryId }: ContactsTableProps) => {
+const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -269,18 +271,35 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
       .order("created_at", { ascending: true });
 
     if (!error && data) {
-      setContacts(data);
+      // Filter by phase if specified (filtering in-memory until sales_stage column is added)
+      if (phase) {
+        const phaseFiltered = data.filter((c) => c.status === getPhaseStatus(phase));
+        setContacts(phaseFiltered);
+      } else {
+        setContacts(data);
+      }
     }
     setLoading(false);
   };
 
+  const getPhaseStatus = (p: string) => {
+    switch (p) {
+      case "lead": return "Lead";
+      case "presentation": return "Demo Stage";
+      case "conversion": return "Closed Won";
+      default: return "Lead";
+    }
+  };
+
   const handleAddNew = async () => {
+    const defaultStatus = phase ? getPhaseStatus(phase) : "Lead";
+    
     const { data, error } = await supabase
       .from("contacts")
       .insert({
         category_id: categoryId,
         business_name: "",
-        status: "Lead",
+        status: defaultStatus,
       })
       .select()
       .single();
