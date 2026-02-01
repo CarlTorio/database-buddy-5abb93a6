@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import ContactsTable from "@/components/ContactsTable";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
-import SalesPipeline from "@/components/SalesPipeline";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -69,7 +68,7 @@ const CRM = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <main className="flex-1 pt-20 px-4 lg:px-8 pb-8">
+        <main className="flex-1 pt-20 px-4 lg:px-8">
           <div className="w-full">
             <div className="flex items-center justify-between mb-4">
               <Button
@@ -87,9 +86,11 @@ const CRM = () => {
             <h1 className="text-3xl font-bold text-foreground mb-6">
               {selectedCategory.name}
             </h1>
-            
-            {/* Sales Pipeline */}
-            <SalesPipeline categoryId={selectedCategory.id} />
+            <ContactsTable
+              categoryId={selectedCategory.id}
+              isAdding={isAddingContact}
+              onAddingChange={setIsAddingContact}
+            />
           </div>
         </main>
         <Footer />
