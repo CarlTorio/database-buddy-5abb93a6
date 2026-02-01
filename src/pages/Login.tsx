@@ -18,6 +18,8 @@ import Navbar from "@/components/Navbar";
 import FeaturesSection from "@/components/FeaturesSection";
 import ToolsSection from "@/components/ToolsSection";
 import Footer from "@/components/Footer";
+import backgroundImage from "@/assets/background.png";
+import logoImage from "@/assets/logo.png";
 
 const ROLE_ROUTES: Record<UserRole, string> = {
   developer: "/dashboard",
@@ -116,20 +118,26 @@ const Login = () => {
       <Navbar />
       
       {/* Hero Section with Login */}
-      <section className="min-h-screen flex items-center justify-center pt-16 relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-glow" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: "1s" }} />
+      <section 
+        className="min-h-screen flex items-center justify-center pt-16 relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        {/* Background Overlay */}
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center space-y-8">
             {/* Logo - Triple Click for Admin */}
             <button
               onClick={handleLogoClick}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer select-none"
+              className="cursor-pointer select-none mx-auto block"
             >
-              LogiCode.PH
+              <img src={logoImage} alt="LogiCode.PH" className="h-20 w-auto mx-auto hover:opacity-90 transition-opacity" />
             </button>
 
             {/* Main Heading */}
