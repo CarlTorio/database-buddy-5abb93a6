@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import ContactsTable from "@/components/ContactsTable";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
-import SalesPipeline from "@/components/SalesPipeline";
+
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -69,7 +69,7 @@ const CRM = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <main className="flex-1 pt-20 px-4 lg:px-8">
+        <main className="flex-1 pt-20 px-4 lg:px-8 pb-8">
           <div className="w-full">
             <div className="flex items-center justify-between mb-4">
               <Button
@@ -84,14 +84,36 @@ const CRM = () => {
               </Button>
               <EmailTemplateDialog />
             </div>
-            <h1 className="text-3xl font-bold text-foreground mb-6">
+            <h1 className="text-3xl font-bold text-foreground mb-8">
               {selectedCategory.name}
             </h1>
-            <ContactsTable
-              categoryId={selectedCategory.id}
-              isAdding={isAddingContact}
-              onAddingChange={setIsAddingContact}
-            />
+            
+            {/* Phase 1: Lead Stage */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 1: Lead Stage</h2>
+              <ContactsTable
+                categoryId={selectedCategory.id}
+                phase="lead"
+              />
+            </div>
+
+            {/* Phase 2: Presentation */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 2: Presentation</h2>
+              <ContactsTable
+                categoryId={selectedCategory.id}
+                phase="presentation"
+              />
+            </div>
+
+            {/* Phase 3: Conversion */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 3: Conversion</h2>
+              <ContactsTable
+                categoryId={selectedCategory.id}
+                phase="conversion"
+              />
+            </div>
           </div>
         </main>
         <Footer />
@@ -178,9 +200,6 @@ const CRM = () => {
               ))}
             </div>
           )}
-
-          {/* Sales Pipeline */}
-          <SalesPipeline />
         </div>
       </main>
       <Footer />
