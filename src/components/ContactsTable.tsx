@@ -131,14 +131,20 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === PHASE1_DEFAULT_COLUMN_ORDER.length) {
-          setColumnOrder(parsed as Phase1ColumnKey[]);
-          return;
+        if (Array.isArray(parsed)) {
+          // Check if all default columns are present in saved order
+          const allColumnsPresent = PHASE1_DEFAULT_COLUMN_ORDER.every(col => parsed.includes(col));
+          if (allColumnsPresent && parsed.length === PHASE1_DEFAULT_COLUMN_ORDER.length) {
+            setColumnOrder(parsed as Phase1ColumnKey[]);
+            return;
+          }
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
+    // Clear outdated saved order and use default
+    localStorage.removeItem(storageKey);
     setColumnOrder(PHASE1_DEFAULT_COLUMN_ORDER);
   }, [categoryId]);
 
