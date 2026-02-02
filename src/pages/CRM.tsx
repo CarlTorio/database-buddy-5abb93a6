@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import ContactsTable from "@/components/ContactsTable";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
+
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -20,6 +21,7 @@ const CRM = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isAddingContact, setIsAddingContact] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -72,7 +74,10 @@ const CRM = () => {
             <div className="flex items-center justify-between mb-4">
               <Button
                 variant="ghost"
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setIsAddingContact(false);
+                }}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Categories
@@ -85,15 +90,7 @@ const CRM = () => {
             
             {/* Phase 1: Lead Stage */}
             <div className="mb-8">
-              <div className="bg-slate-700/50 rounded-t-lg px-4 py-3 border border-border border-b-0">
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <span className="bg-slate-600 text-white px-2 py-0.5 rounded text-sm">Phase 1</span>
-                  Lead Stage
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Initial contact and qualification. Select "Demo Stage" to move to Phase 2.
-                </p>
-              </div>
+              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 1: Lead Stage</h2>
               <ContactsTable
                 categoryId={selectedCategory.id}
                 phase="lead"
@@ -102,15 +99,7 @@ const CRM = () => {
 
             {/* Phase 2: Presentation */}
             <div className="mb-8">
-              <div className="bg-purple-900/30 rounded-t-lg px-4 py-3 border border-border border-b-0">
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <span className="bg-purple-600 text-white px-2 py-0.5 rounded text-sm">Phase 2</span>
-                  Presentation
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Demo creation and client review. Select "Approved" to move to Phase 3.
-                </p>
-              </div>
+              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 2: Presentation</h2>
               <ContactsTable
                 categoryId={selectedCategory.id}
                 phase="presentation"
@@ -119,15 +108,7 @@ const CRM = () => {
 
             {/* Phase 3: Conversion */}
             <div className="mb-8">
-              <div className="bg-green-900/30 rounded-t-lg px-4 py-3 border border-border border-b-0">
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <span className="bg-green-600 text-white px-2 py-0.5 rounded text-sm">Phase 3</span>
-                  Conversion
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Negotiation and closing. Track payments and project completion.
-                </p>
-              </div>
+              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 3: Conversion</h2>
               <ContactsTable
                 categoryId={selectedCategory.id}
                 phase="conversion"
