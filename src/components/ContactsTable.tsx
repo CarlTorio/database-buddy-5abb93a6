@@ -20,7 +20,7 @@ interface EmailTemplate {
 }
 
 // Phase 1 columns
-type Phase1ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "lead_source" | "sales_stage" | "demo_link" | "contact_count" | "last_contacted_at" | "notes";
+type Phase1ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "lead_source" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes";
 
 interface Phase1ColumnWidths {
   assigned_to: number;
@@ -31,7 +31,6 @@ interface Phase1ColumnWidths {
   link: number;
   lead_source: number;
   sales_stage: number;
-  demo_link: number;
   contact_count: number;
   last_contacted_at: number;
   notes: number;
@@ -46,7 +45,6 @@ const PHASE1_DEFAULT_WIDTHS: Phase1ColumnWidths = {
   link: 140,
   lead_source: 110,
   sales_stage: 120,
-  demo_link: 140,
   contact_count: 80,
   last_contacted_at: 140,
   notes: 180,
@@ -61,7 +59,6 @@ const PHASE1_COLUMN_LABELS: Record<Phase1ColumnKey, string> = {
   link: "Link",
   lead_source: "Lead Source",
   sales_stage: "Sales Stage",
-  demo_link: "Demo Link",
   contact_count: "# of Attempts",
   last_contacted_at: "Last Update",
   notes: "Notes",
@@ -76,7 +73,6 @@ const PHASE1_DEFAULT_COLUMN_ORDER: Phase1ColumnKey[] = [
   "link",
   "lead_source",
   "sales_stage",
-  "demo_link",
   "contact_count",
   "last_contacted_at",
   "notes",
@@ -857,61 +853,6 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
                 <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        );
-
-      case "demo_link":
-        return (
-          <div className={baseClass} style={style}>
-            {editingCell?.id === contact.id && editingCell?.field === "demo_link" ? (
-              <Input
-                ref={inputRef}
-                value={editValue}
-                onChange={(e) => handleInputChange(contact.id, "demo_link", e.target.value)}
-                onBlur={() => handleBlur(contact.id, "demo_link")}
-                onKeyDown={(e) => handleKeyDown(e, contact.id, "demo_link")}
-                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
-                placeholder="Paste demo link..."
-              />
-            ) : (
-              <div className="px-3 py-1 min-h-[32px] flex items-center text-sm w-full">
-                {contact.demo_link ? (
-                  <div className="flex items-center gap-2 w-full">
-                    <span
-                      className="text-primary hover:underline truncate flex-1 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const url = contact.demo_link?.startsWith("http") ? contact.demo_link : `https://${contact.demo_link}`;
-                        window.open(url, "_blank", "noopener,noreferrer");
-                      }}
-                    >
-                      {contact.demo_link}
-                    </span>
-                    <ExternalLink 
-                      className="w-3.5 h-3.5 text-muted-foreground shrink-0 cursor-pointer hover:text-primary" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const url = contact.demo_link?.startsWith("http") ? contact.demo_link : `https://${contact.demo_link}`;
-                        window.open(url, "_blank", "noopener,noreferrer");
-                      }}
-                    />
-                    <span
-                      className="cursor-text text-muted-foreground hover:text-foreground"
-                      onClick={() => startEditing(contact.id, "demo_link", contact.demo_link)}
-                    >
-                      ✎
-                    </span>
-                  </div>
-                ) : (
-                  <span
-                    className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
-                    onClick={() => startEditing(contact.id, "demo_link", contact.demo_link)}
-                  >
-                    Paste link...
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         );
 
