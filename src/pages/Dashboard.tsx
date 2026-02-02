@@ -1,6 +1,5 @@
 import UserCreditsTable from "@/components/UserCreditsTable";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 
 const Dashboard = () => {
   return (
@@ -20,8 +19,6 @@ const Dashboard = () => {
           <UserCreditsTable />
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 };
