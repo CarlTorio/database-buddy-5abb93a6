@@ -63,6 +63,7 @@ CREATE TABLE public.contacts (
     last_contacted_at TIMESTAMP WITH TIME ZONE,
     notes TEXT,
     value NUMERIC,
+    deposit NUMERIC,
     priority_level TEXT,
     follow_up_at TIMESTAMP WITH TIME ZONE,
     current_phase INTEGER NOT NULL DEFAULT 1,

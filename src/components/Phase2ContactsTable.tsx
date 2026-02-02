@@ -131,10 +131,6 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
 
   // Lead Source dialog
   const [leadSourceDialog, setLeadSourceDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
-  
-  // Request Demo dialog
-  const [requestDemoDialog, setRequestDemoDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
-  const [demoInstructions, setDemoInstructions] = useState("");
 
   // Approved negotiation price dialog
   const [approvedDialog, setApprovedDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
@@ -537,8 +533,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
     if (!contact) return;
 
     if (newStage === "Request Demo") {
-      setDemoInstructions(contact.demo_instructions || "");
-      setRequestDemoDialog({ open: true, contact });
+      await handleUpdate(contactId, "sales_stage", newStage, true);
     } else if (newStage === "Demo Approved") {
       setNegotiationPrice(contact.value?.toString() || "");
       setApprovedDialog({ open: true, contact });
@@ -577,35 +572,6 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
     setNegotiationPrice("");
   };
 
-  // Save demo instructions and update sales stage
-  const handleSaveDemoInstructions = async () => {
-    if (!requestDemoDialog.contact) return;
-    
-    const { error } = await supabase
-      .from("contacts")
-      .update({ 
-        sales_stage: "Request Demo",
-        demo_instructions: demoInstructions,
-        updated_at: new Date().toISOString() 
-      })
-      .eq("id", requestDemoDialog.contact.id);
-
-    if (!error) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === requestDemoDialog.contact!.id 
-            ? { ...c, sales_stage: "Request Demo", demo_instructions: demoInstructions, updated_at: new Date().toISOString() } 
-            : c
-        )
-      );
-      toast.success("Demo request saved");
-    } else {
-      toast.error("Failed to save demo request");
-    }
-    
-    setRequestDemoDialog({ open: false, contact: null });
-    setDemoInstructions("");
-  };
 
   const renderCell = (contact: Contact, columnKey: Phase2ColumnKey, isLast: boolean) => {
     const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
@@ -1112,46 +1078,6 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
         </DialogContent>
       </Dialog>
 
-      {/* Request Demo Dialog */}
-      <Dialog open={requestDemoDialog.open} onOpenChange={(open) => {
-        if (!open) {
-          setRequestDemoDialog({ open: false, contact: null });
-          setDemoInstructions("");
-        }
-      }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Request Demo - Instructions for Web Developer</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {requestDemoDialog.contact && (
-              <p className="text-sm text-muted-foreground">
-                Business: {requestDemoDialog.contact.business_name || "Unnamed"}
-              </p>
-            )}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Demo Instructions / Notes</label>
-              <Textarea
-                value={demoInstructions}
-                onChange={(e) => setDemoInstructions(e.target.value)}
-                placeholder="Enter instructions for the web developer who will create the demo website..."
-                className="min-h-[150px]"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => {
-                setRequestDemoDialog({ open: false, contact: null });
-                setDemoInstructions("");
-              }}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveDemoInstructions}>
-                Save & Set Request Demo
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Approved Negotiation Price Dialog */}
       <Dialog open={approvedDialog.open} onOpenChange={(open) => {
