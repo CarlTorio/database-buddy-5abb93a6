@@ -820,7 +820,12 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
           </div>
         );
 
-      case "sales_stage":
+      case "sales_stage": {
+        const stageStyles: Record<string, string> = {
+          "Deposit Paid": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+          "Fully Paid": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+          "Complete": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+        };
         return (
           <div className={baseClass} style={style}>
             <div className="px-2 py-1 min-h-[32px] flex items-center text-sm w-full">
@@ -828,17 +833,13 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
                 value={contact.sales_stage}
                 onValueChange={(value) => handleUpdate(contact.id, "sales_stage", value, true)}
               >
-                <SelectTrigger className="h-7 border-0 bg-transparent hover:bg-muted/50 focus:ring-1 focus:ring-primary text-sm">
+                <SelectTrigger className={`h-7 border rounded-md px-3 text-xs font-medium ${stageStyles[contact.sales_stage] || "bg-muted border-border"} focus:ring-1 focus:ring-primary`}>
                   <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover border border-border">
                   {PHASE3_SALES_STAGES.map((stage) => (
-                    <SelectItem key={stage} value={stage}>
-                      <span className={
-                        stage === "Deposit Paid" ? "text-amber-600" :
-                        stage === "Fully Paid" ? "text-blue-600" :
-                        stage === "Complete" ? "text-emerald-600" : ""
-                      }>
+                    <SelectItem key={stage} value={stage} className="focus:bg-accent">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${stageStyles[stage]}`}>
                         {stage}
                       </span>
                     </SelectItem>
@@ -848,6 +849,7 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
             </div>
           </div>
         );
+      }
 
       case "deposit":
         return (
@@ -939,7 +941,7 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
 
   return (
     <>
-      <div className="border border-border rounded-lg overflow-x-auto">
+      <div className="border border-border rounded-lg overflow-x-auto scrollbar-hide">
         {/* Header */}
         <div className="flex bg-muted/50 border-b border-border">
           {columnOrder.map((columnKey, index) => {
