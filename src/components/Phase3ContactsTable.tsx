@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, GripVertical, AlertTriangle, User, Hash, Eye } from "lucide-react";
+import { FileText, Trash2, ExternalLink, Mail, Phone, GripVertical, AlertTriangle, User, Eye, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,70 +12,60 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 
 interface EmailTemplate {
   subject: string;
   body: string;
 }
 
-// Phase 2 columns (no lead_source in main view, has eye button instead)
-type Phase2ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "sales_stage" | "demo_link" | "contact_count" | "last_contacted_at" | "notes";
+// Phase 3 columns - no contact_count and last_contacted_at in main view (moved to eye button)
+type Phase3ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "demo_link" | "value" | "notes";
 
-interface Phase2ColumnWidths {
+interface Phase3ColumnWidths {
   assigned_to: number;
   business_name: number;
   contact_name: number;
   mobile_number: number;
   email: number;
   link: number;
-  sales_stage: number;
   demo_link: number;
-  contact_count: number;
-  last_contacted_at: number;
+  value: number;
   notes: number;
 }
 
-const PHASE2_DEFAULT_WIDTHS: Phase2ColumnWidths = {
+const PHASE3_DEFAULT_WIDTHS: Phase3ColumnWidths = {
   assigned_to: 100,
   business_name: 150,
   contact_name: 130,
   mobile_number: 120,
   email: 150,
   link: 140,
-  sales_stage: 140,
   demo_link: 140,
-  contact_count: 80,
-  last_contacted_at: 140,
+  value: 120,
   notes: 180,
 };
 
-const PHASE2_COLUMN_LABELS: Record<Phase2ColumnKey, string> = {
+const PHASE3_COLUMN_LABELS: Record<Phase3ColumnKey, string> = {
   assigned_to: "Assigned",
   business_name: "Business Name",
   contact_name: "Contact Name",
   mobile_number: "Number",
   email: "Email",
   link: "Link",
-  sales_stage: "Sales Stage",
   demo_link: "Demo Link",
-  contact_count: "# of Attempts",
-  last_contacted_at: "Last Update",
+  value: "Price",
   notes: "Notes",
 };
 
-const PHASE2_DEFAULT_COLUMN_ORDER: Phase2ColumnKey[] = [
+const PHASE3_DEFAULT_COLUMN_ORDER: Phase3ColumnKey[] = [
   "assigned_to",
   "business_name",
   "contact_name",
   "mobile_number",
   "email",
   "link",
-  "sales_stage",
   "demo_link",
-  "contact_count",
-  "last_contacted_at",
+  "value",
   "notes",
 ];
 
@@ -112,85 +95,72 @@ interface Contact {
   demo_instructions: string | null;
 }
 
-interface Phase2ContactsTableProps {
+interface Phase3ContactsTableProps {
   categoryId: string;
-  onContactMovedToPhase3?: () => void;
 }
 
-const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2ContactsTableProps) => {
+const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
   const { userName } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const [columnWidths, setColumnWidths] = useState<Phase2ColumnWidths>(PHASE2_DEFAULT_WIDTHS);
+  const [columnWidths, setColumnWidths] = useState<Phase3ColumnWidths>(PHASE3_DEFAULT_WIDTHS);
   const startWidthRef = useRef<number>(0);
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
-  const [columnOrder, setColumnOrder] = useState<Phase2ColumnKey[]>(PHASE2_DEFAULT_COLUMN_ORDER);
+  const [columnOrder, setColumnOrder] = useState<Phase3ColumnKey[]>(PHASE3_DEFAULT_COLUMN_ORDER);
 
-  // Lead Source dialog
-  const [leadSourceDialog, setLeadSourceDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
-  
-  // Request Demo dialog
-  const [requestDemoDialog, setRequestDemoDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
-  const [demoInstructions, setDemoInstructions] = useState("");
-
-  // Approved negotiation price dialog
-  const [approvedDialog, setApprovedDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
-  const [negotiationPrice, setNegotiationPrice] = useState("");
+  // Details dialog for # of attempts and last update
+  const [detailsDialog, setDetailsDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
 
   // Load column order from localStorage
   useEffect(() => {
-    const storageKey = `contacts-column-order-phase2-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-phase3-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Check if all default columns are present in saved order
-          const allColumnsPresent = PHASE2_DEFAULT_COLUMN_ORDER.every(col => parsed.includes(col));
-          if (allColumnsPresent && parsed.length === PHASE2_DEFAULT_COLUMN_ORDER.length) {
-            setColumnOrder(parsed as Phase2ColumnKey[]);
+          const allColumnsPresent = PHASE3_DEFAULT_COLUMN_ORDER.every(col => parsed.includes(col));
+          if (allColumnsPresent && parsed.length === PHASE3_DEFAULT_COLUMN_ORDER.length) {
+            setColumnOrder(parsed as Phase3ColumnKey[]);
             return;
           }
         }
-      } catch (e) {
-        // Invalid JSON, use default
-      }
+      } catch (e) {}
     }
-    // Clear outdated saved order and use default
     localStorage.removeItem(storageKey);
-    setColumnOrder(PHASE2_DEFAULT_COLUMN_ORDER);
+    setColumnOrder(PHASE3_DEFAULT_COLUMN_ORDER);
   }, [categoryId]);
 
   useEffect(() => {
-    const storageKey = `contacts-column-order-phase2-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-phase3-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnOrder));
   }, [columnOrder, categoryId]);
 
   useEffect(() => {
-    const storageKey = `contacts-column-widths-phase2-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-phase3-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (typeof parsed === 'object' && parsed !== null) {
-          setColumnWidths({ ...PHASE2_DEFAULT_WIDTHS, ...parsed });
+          setColumnWidths({ ...PHASE3_DEFAULT_WIDTHS, ...parsed });
           return;
         }
       } catch (e) {}
     }
-    setColumnWidths(PHASE2_DEFAULT_WIDTHS);
+    setColumnWidths(PHASE3_DEFAULT_WIDTHS);
   }, [categoryId]);
 
   useEffect(() => {
-    const storageKey = `contacts-column-widths-phase2-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-phase3-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnWidths));
   }, [columnWidths, categoryId]);
 
-  const [draggedColumn, setDraggedColumn] = useState<Phase2ColumnKey | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<Phase2ColumnKey | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<Phase3ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<Phase3ColumnKey | null>(null);
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -207,7 +177,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
   }, []);
 
   const handleResizeStart = useCallback(
-    (key: keyof Phase2ColumnWidths) => (e: React.MouseEvent) => {
+    (key: keyof Phase3ColumnWidths) => (e: React.MouseEvent) => {
       e.preventDefault();
       startWidthRef.current = columnWidths[key];
       const startX = e.clientX;
@@ -235,13 +205,13 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
     [columnWidths]
   );
 
-  const handleDragStart = (e: React.DragEvent, columnKey: Phase2ColumnKey) => {
+  const handleDragStart = (e: React.DragEvent, columnKey: Phase3ColumnKey) => {
     setDraggedColumn(columnKey);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", columnKey);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnKey: Phase2ColumnKey) => {
+  const handleDragOver = (e: React.DragEvent, columnKey: Phase3ColumnKey) => {
     e.preventDefault();
     if (draggedColumn && draggedColumn !== columnKey) {
       setDragOverColumn(columnKey);
@@ -252,7 +222,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetColumn: Phase2ColumnKey) => {
+  const handleDrop = (e: React.DragEvent, targetColumn: Phase3ColumnKey) => {
     e.preventDefault();
     if (!draggedColumn || draggedColumn === targetColumn) {
       setDraggedColumn(null);
@@ -292,7 +262,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
       .from("contacts")
       .select("*")
       .eq("category_id", categoryId)
-      .eq("current_phase", 2)
+      .eq("current_phase", 3)
       .order("created_at", { ascending: true });
 
     if (!error && data) {
@@ -388,100 +358,19 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
       toast.error("Email template not loaded");
       return;
     }
-    await trackContact(contactId);
     const subject = encodeURIComponent(emailTemplate.subject);
     const body = encodeURIComponent(emailTemplate.body);
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`;
     window.open(gmailUrl, "_blank", "noopener,noreferrer");
   };
 
-  const handlePhoneCall = async (phone: string, contactId: string) => {
-    await trackContact(contactId);
+  const handlePhoneCall = async (phone: string) => {
     window.open(`tel:${phone}`, "_self");
   };
 
-  const trackContact = async (contactId: string) => {
-    const contact = contacts.find(c => c.id === contactId);
-    if (!contact) return;
-
-    const now = new Date().toISOString();
-    const newCount = (contact.contact_count || 0) + 1;
-
-    const { error } = await supabase
-      .from("contacts")
-      .update({ 
-        last_contacted_at: now, 
-        contact_count: newCount,
-        updated_at: now 
-      })
-      .eq("id", contactId);
-
-    if (!error) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === contactId 
-            ? { ...c, last_contacted_at: now, contact_count: newCount, updated_at: now } 
-            : c
-        )
-      );
-    }
-  };
-
-  const handleIncrementAttempts = async (contactId: string) => {
-    const contact = contacts.find(c => c.id === contactId);
-    if (!contact) return;
-
-    const newCount = (contact.contact_count || 0) + 1;
-    await handleUpdate(contactId, "contact_count", newCount, true);
-  };
-
-  const handleSetLastUpdate = async (contactId: string) => {
-    const now = new Date().toISOString();
-    const { error } = await supabase
-      .from("contacts")
-      .update({ 
-        last_contacted_at: now,
-        updated_at: now 
-      })
-      .eq("id", contactId);
-
-    if (!error) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === contactId 
-            ? { ...c, last_contacted_at: now, updated_at: now } 
-            : c
-        )
-      );
-      toast.success("Last update set to now");
-    }
-  };
-
   const formatLastContacted = (date: string | null) => {
-    if (!date) return null;
+    if (!date) return "Never";
     return format(new Date(date), "MMM d, yyyy h:mm a");
-  };
-
-  // Phase 2 sales stage options (no Lead, no Approached)
-  const phase2SalesStages = [
-    "Request Demo",
-    "Demo Created",
-    "Decision Pending",
-    "Demo Approved",
-    "Undecided",
-    "Rejected",
-  ];
-
-  const salesStageColors: Record<string, string> = {
-    "Request Demo": "bg-amber-100 text-amber-700 border-amber-300",
-    "Demo Created": "bg-blue-100 text-blue-700 border-blue-300",
-    "Decision Pending": "bg-yellow-100 text-yellow-700 border-yellow-300",
-    "Demo Approved": "bg-green-100 text-green-700 border-green-300",
-    "Undecided": "bg-orange-100 text-orange-700 border-orange-300",
-    "Rejected": "bg-red-100 text-red-700 border-red-300",
-    // Keep old ones for backwards compatibility
-    "Demo Stage": "bg-purple-100 text-purple-700 border-purple-300",
-    "Approved": "bg-green-100 text-green-700 border-green-300",
   };
 
   const leadSourceColors: Record<string, string> = {
@@ -520,7 +409,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
     );
   };
 
-  const ResizeHandle = ({ columnKey }: { columnKey: keyof Phase2ColumnWidths }) => (
+  const ResizeHandle = ({ columnKey }: { columnKey: keyof Phase3ColumnWidths }) => (
     <div
       className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary active:bg-primary transition-colors z-10"
       onMouseDown={handleResizeStart(columnKey)}
@@ -531,83 +420,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
 
   const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
 
-  // Handle sales stage change with Request Demo dialog or Demo Approved dialog
-  const handleSalesStageChange = async (contactId: string, newStage: string) => {
-    const contact = contacts.find(c => c.id === contactId);
-    if (!contact) return;
-
-    if (newStage === "Request Demo") {
-      setDemoInstructions(contact.demo_instructions || "");
-      setRequestDemoDialog({ open: true, contact });
-    } else if (newStage === "Demo Approved") {
-      setNegotiationPrice(contact.value?.toString() || "");
-      setApprovedDialog({ open: true, contact });
-    } else {
-      await handleUpdate(contactId, "sales_stage", newStage, true);
-    }
-  };
-
-  // Save negotiation price and move to Phase 3
-  const handleSaveNegotiationPrice = async () => {
-    if (!approvedDialog.contact) return;
-    
-    const numValue = parseFloat(negotiationPrice.replace(/[^\d.]/g, ""));
-    const priceValue = isNaN(numValue) ? null : numValue;
-
-    const { error } = await supabase
-      .from("contacts")
-      .update({ 
-        sales_stage: "Demo Approved",
-        value: priceValue,
-        current_phase: 3,
-        updated_at: new Date().toISOString() 
-      })
-      .eq("id", approvedDialog.contact.id);
-
-    if (!error) {
-      // Remove from Phase 2 list (it moves to Phase 3)
-      setContacts(contacts.filter(c => c.id !== approvedDialog.contact!.id));
-      toast.success("Deal approved! Contact moved to Phase 3");
-      onContactMovedToPhase3?.();
-    } else {
-      toast.error("Failed to save approval");
-    }
-    
-    setApprovedDialog({ open: false, contact: null });
-    setNegotiationPrice("");
-  };
-
-  // Save demo instructions and update sales stage
-  const handleSaveDemoInstructions = async () => {
-    if (!requestDemoDialog.contact) return;
-    
-    const { error } = await supabase
-      .from("contacts")
-      .update({ 
-        sales_stage: "Request Demo",
-        demo_instructions: demoInstructions,
-        updated_at: new Date().toISOString() 
-      })
-      .eq("id", requestDemoDialog.contact.id);
-
-    if (!error) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === requestDemoDialog.contact!.id 
-            ? { ...c, sales_stage: "Request Demo", demo_instructions: demoInstructions, updated_at: new Date().toISOString() } 
-            : c
-        )
-      );
-      toast.success("Demo request saved");
-    } else {
-      toast.error("Failed to save demo request");
-    }
-    
-    setRequestDemoDialog({ open: false, contact: null });
-    setDemoInstructions("");
-  };
-
-  const renderCell = (contact: Contact, columnKey: Phase2ColumnKey, isLast: boolean) => {
+  const renderCell = (contact: Contact, columnKey: Phase3ColumnKey, isLast: boolean) => {
     const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
     const style = isLast 
       ? { minWidth: columnWidths[columnKey] } 
@@ -636,13 +449,13 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
                   {contact.assigned_to || <span className="text-muted-foreground/50 text-sm">Empty</span>}
                 </span>
               )}
-              {/* Eye button for Lead Source */}
+              {/* Eye button for details (# of attempts, last update, lead source) */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setLeadSourceDialog({ open: true, contact });
+                      setDetailsDialog({ open: true, contact });
                     }}
                     className="p-1 hover:bg-muted rounded transition-colors"
                   >
@@ -650,7 +463,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p className="text-xs">View Lead Source</p>
+                  <p className="text-xs">View Details</p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -741,7 +554,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
                       className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handlePhoneCall(contact.mobile_number!, contact.id);
+                        handlePhoneCall(contact.mobile_number!);
                       }}
                     />
                   </>
@@ -817,42 +630,34 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
                 onBlur={() => handleBlur(contact.id, "link")}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "link")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
-                placeholder="https://..."
               />
             ) : (
-              <div className="px-3 py-1 min-h-[32px] flex items-center text-sm w-full">
+              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
                 {contact.link ? (
-                  <div className="flex items-center gap-2 w-full">
+                  <>
                     <span
-                      className="text-primary hover:underline truncate flex-1 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const url = contact.link?.startsWith("http") ? contact.link : `https://${contact.link}`;
-                        window.open(url, "_blank", "noopener,noreferrer");
-                      }}
+                      className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
+                      onClick={() => startEditing(contact.id, "link", contact.link || null)}
                     >
                       {contact.link}
                     </span>
                     <DuplicateWarning duplicates={duplicates} fieldLabel="link" />
-                    <ExternalLink 
-                      className="w-3.5 h-3.5 text-muted-foreground shrink-0 cursor-pointer hover:text-primary" 
+                    <ExternalLink
+                      className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const url = contact.link?.startsWith("http") ? contact.link : `https://${contact.link}`;
+                        let url = contact.link!;
+                        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                          url = "https://" + url;
+                        }
                         window.open(url, "_blank", "noopener,noreferrer");
                       }}
                     />
-                    <span
-                      className="cursor-text text-muted-foreground hover:text-foreground"
-                      onClick={() => startEditing(contact.id, "link", contact.link)}
-                    >
-                      ✎
-                    </span>
-                  </div>
+                  </>
                 ) : (
                   <span
                     className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
-                    onClick={() => startEditing(contact.id, "link", contact.link)}
+                    onClick={() => startEditing(contact.id, "link", contact.link || null)}
                   >
                     Empty
                   </span>
@@ -862,29 +667,6 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
           </div>
         );
       }
-
-      case "sales_stage":
-        return (
-          <div className={baseClass} style={style}>
-            <Select
-              value={contact.sales_stage}
-              onValueChange={(value) => handleSalesStageChange(contact.id, value)}
-            >
-              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
-                <SelectValue>
-                  <span className={`${salesStageColors[contact.sales_stage] || "bg-gray-400 text-white"} px-2 py-0.5 rounded text-xs font-medium`}>
-                    {contact.sales_stage}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {phase2SalesStages.map((stage) => (
-                  <SelectItem key={stage} value={stage} className="text-sm">{stage}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        );
 
       case "demo_link":
         return (
@@ -897,43 +679,35 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
                 onBlur={() => handleBlur(contact.id, "demo_link")}
                 onKeyDown={(e) => handleKeyDown(e, contact.id, "demo_link")}
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
-                placeholder="Paste demo link..."
               />
             ) : (
-              <div className="px-3 py-1 min-h-[32px] flex items-center text-sm w-full">
+              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
                 {contact.demo_link ? (
-                  <div className="flex items-center gap-2 w-full">
+                  <>
                     <span
-                      className="text-primary hover:underline truncate flex-1 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const url = contact.demo_link?.startsWith("http") ? contact.demo_link : `https://${contact.demo_link}`;
-                        window.open(url, "_blank", "noopener,noreferrer");
-                      }}
+                      className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
+                      onClick={() => startEditing(contact.id, "demo_link", contact.demo_link || null)}
                     >
                       {contact.demo_link}
                     </span>
-                    <ExternalLink 
-                      className="w-3.5 h-3.5 text-muted-foreground shrink-0 cursor-pointer hover:text-primary" 
+                    <ExternalLink
+                      className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const url = contact.demo_link?.startsWith("http") ? contact.demo_link : `https://${contact.demo_link}`;
+                        let url = contact.demo_link!;
+                        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                          url = "https://" + url;
+                        }
                         window.open(url, "_blank", "noopener,noreferrer");
                       }}
                     />
-                    <span
-                      className="cursor-text text-muted-foreground hover:text-foreground"
-                      onClick={() => startEditing(contact.id, "demo_link", contact.demo_link)}
-                    >
-                      ✎
-                    </span>
-                  </div>
+                  </>
                 ) : (
                   <span
                     className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
-                    onClick={() => startEditing(contact.id, "demo_link", contact.demo_link)}
+                    onClick={() => startEditing(contact.id, "demo_link", contact.demo_link || null)}
                   >
-                    Paste link...
+                    Empty
                   </span>
                 )}
               </div>
@@ -941,43 +715,27 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
           </div>
         );
 
-      case "contact_count":
+      case "value":
         return (
           <div className={baseClass} style={style}>
-            <div 
-              className="px-3 py-1 min-h-[32px] flex items-center justify-center cursor-pointer hover:bg-muted/50 w-full"
-              onClick={() => handleIncrementAttempts(contact.id)}
-              title="Click to increment attempts"
-            >
-              <div className="flex items-center gap-1">
-                <Hash className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="min-w-[24px] h-6 flex items-center justify-center bg-primary/10 text-primary text-sm font-medium rounded px-2">
-                  {contact.contact_count || 0}
-                </span>
-              </div>
-            </div>
-          </div>
-        );
-
-      case "last_contacted_at":
-        return (
-          <div className={baseClass} style={style}>
-            <div 
-              className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded w-full"
-              onClick={() => handleSetLastUpdate(contact.id)}
-              title="Click to set to current date/time"
-            >
-              {contact.last_contacted_at ? (
-                <div className="flex items-center gap-2 w-full">
-                  <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate flex-1 text-xs">
-                    {formatLastContacted(contact.last_contacted_at)}
-                  </span>
-                </div>
+            <div className="flex items-center gap-2 px-2 py-1.5 w-full">
+              <DollarSign className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              {editingCell?.id === contact.id && editingCell?.field === "value" ? (
+                <Input
+                  ref={inputRef}
+                  value={editValue}
+                  onChange={(e) => handleInputChange(contact.id, "value", e.target.value)}
+                  onBlur={() => handleBlur(contact.id, "value")}
+                  onKeyDown={(e) => handleKeyDown(e, contact.id, "value")}
+                  className="h-6 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary text-sm"
+                  placeholder="0"
+                />
               ) : (
-                <span className="text-muted-foreground/50 text-xs flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  Click to set
+                <span
+                  className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm truncate font-medium text-green-600"
+                  onClick={() => startEditing(contact.id, "value", contact.value?.toString() || "")}
+                >
+                  {contact.value ? `₱${contact.value.toLocaleString()}` : <span className="text-muted-foreground/50 font-normal">Empty</span>}
                 </span>
               )}
             </div>
@@ -997,11 +755,13 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
                 className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
               />
             ) : (
-              <div
-                className="cursor-text px-3 py-1.5 min-h-[32px] flex-1 text-sm whitespace-pre-wrap break-words hover:bg-muted/50 w-full"
-                onClick={() => startEditing(contact.id, "notes", contact.notes)}
-              >
-                {contact.notes || <span className="text-muted-foreground/50">Empty</span>}
+              <div className="px-3 py-1 min-h-[32px] flex items-center text-sm w-full">
+                <span
+                  className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
+                  onClick={() => startEditing(contact.id, "notes", contact.notes)}
+                >
+                  {contact.notes || <span className="text-muted-foreground/50">Empty</span>}
+                </span>
               </div>
             )}
           </div>
@@ -1013,18 +773,14 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
   };
 
   if (loading) {
-    return (
-      <div className="text-center text-muted-foreground py-12">
-        Loading contacts...
-      </div>
-    );
+    return <div className="text-center text-muted-foreground py-8">Loading...</div>;
   }
 
   return (
     <>
-      <div className="w-full overflow-x-auto scrollbar-hide border border-border rounded-lg">
+      <div className="border border-border rounded-lg overflow-x-auto">
         {/* Header */}
-        <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
+        <div className="flex bg-muted/50 border-b border-border">
           {columnOrder.map((columnKey, index) => {
             const isLast = index === columnOrder.length - 1;
             return (
@@ -1037,8 +793,8 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
                 onDrop={(e) => handleDrop(e, columnKey)}
                 onDragEnd={handleDragEnd}
                 className={cn(
-                  "relative px-3 py-2 font-medium cursor-grab active:cursor-grabbing select-none",
-                  isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0",
+                  "px-3 py-2 text-sm font-medium text-muted-foreground relative group cursor-grab active:cursor-grabbing select-none",
+                  isLast ? "flex-1" : "border-r border-border shrink-0",
                   draggedColumn === columnKey && "opacity-50",
                   dragOverColumn === columnKey && "bg-primary/10"
                 )}
@@ -1046,7 +802,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
               >
                 <div className="flex items-center gap-1">
                   <GripVertical className="w-3 h-3 text-muted-foreground/50" />
-                  {PHASE2_COLUMN_LABELS[columnKey]}
+                  {PHASE3_COLUMN_LABELS[columnKey]}
                 </div>
                 <ResizeHandle columnKey={columnKey} />
               </div>
@@ -1057,7 +813,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
         {/* Rows */}
         {contacts.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
-            No contacts in Phase 2 yet. Move contacts from Phase 1 by selecting "Demo Stage".
+            No contacts in Phase 3 yet. Approve deals from Phase 2 to move contacts here.
           </div>
         ) : (
           contacts.map((contact) => (
@@ -1084,26 +840,46 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
         )}
       </div>
 
-      {/* Lead Source Dialog */}
-      <Dialog open={leadSourceDialog.open} onOpenChange={(open) => setLeadSourceDialog({ open, contact: open ? leadSourceDialog.contact : null })}>
+      {/* Details Dialog - # of attempts, last update, lead source */}
+      <Dialog open={detailsDialog.open} onOpenChange={(open) => setDetailsDialog({ open, contact: open ? detailsDialog.contact : null })}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Lead Source</DialogTitle>
+            <DialogTitle>Contact Details</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            {leadSourceDialog.contact && (
+            {detailsDialog.contact && (
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">Business: {leadSourceDialog.contact.business_name || "Unnamed"}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Lead Source:</span>
-                    {leadSourceDialog.contact.lead_source ? (
-                      <span className={`${leadSourceColors[leadSourceDialog.contact.lead_source] || "bg-gray-100 text-gray-700"} px-3 py-1 rounded text-sm font-medium`}>
-                        {leadSourceDialog.contact.lead_source}
+                  <p className="text-sm text-muted-foreground mb-4">Business: {detailsDialog.contact.business_name || "Unnamed"}</p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium"># of Attempts:</span>
+                      <span className="text-sm">{detailsDialog.contact.contact_count || 0}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Last Update:</span>
+                      <span className="text-sm">{formatLastContacted(detailsDialog.contact.last_contacted_at)}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Lead Source:</span>
+                      {detailsDialog.contact.lead_source ? (
+                        <span className={`${leadSourceColors[detailsDialog.contact.lead_source] || "bg-muted text-muted-foreground"} px-3 py-1 rounded text-sm font-medium`}>
+                          {detailsDialog.contact.lead_source}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Not set</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Deal Price:</span>
+                      <span className="text-sm font-medium text-green-600">
+                        {detailsDialog.contact.value ? `₱${detailsDialog.contact.value.toLocaleString()}` : "Not set"}
                       </span>
-                    ) : (
-                      <span className="text-muted-foreground">Not set</span>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1111,92 +887,8 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Request Demo Dialog */}
-      <Dialog open={requestDemoDialog.open} onOpenChange={(open) => {
-        if (!open) {
-          setRequestDemoDialog({ open: false, contact: null });
-          setDemoInstructions("");
-        }
-      }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Request Demo - Instructions for Web Developer</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {requestDemoDialog.contact && (
-              <p className="text-sm text-muted-foreground">
-                Business: {requestDemoDialog.contact.business_name || "Unnamed"}
-              </p>
-            )}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Demo Instructions / Notes</label>
-              <Textarea
-                value={demoInstructions}
-                onChange={(e) => setDemoInstructions(e.target.value)}
-                placeholder="Enter instructions for the web developer who will create the demo website..."
-                className="min-h-[150px]"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => {
-                setRequestDemoDialog({ open: false, contact: null });
-                setDemoInstructions("");
-              }}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveDemoInstructions}>
-                Save & Set Request Demo
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Approved Negotiation Price Dialog */}
-      <Dialog open={approvedDialog.open} onOpenChange={(open) => {
-        if (!open) {
-          setApprovedDialog({ open: false, contact: null });
-          setNegotiationPrice("");
-        }
-      }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Approved - Set Negotiation Price</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {approvedDialog.contact && (
-              <p className="text-sm text-muted-foreground">
-                Business: {approvedDialog.contact.business_name || "Unnamed"}
-              </p>
-            )}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Negotiation Price</label>
-              <Input
-                type="text"
-                value={negotiationPrice}
-                onChange={(e) => setNegotiationPrice(e.target.value)}
-                placeholder="Enter negotiation price..."
-                className="w-full"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Enter the agreed negotiation price for this deal</p>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => {
-                setApprovedDialog({ open: false, contact: null });
-                setNegotiationPrice("");
-              }}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveNegotiationPrice}>
-                Approve Deal
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };
 
-export default Phase2ContactsTable;
+export default Phase3ContactsTable;
