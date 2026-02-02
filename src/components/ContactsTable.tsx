@@ -400,13 +400,6 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
   const handleBlur = (id: string, field: string) => {
     handleUpdate(id, field, editValue, true); // immediate save on blur
     setEditingCell(null);
-
-    if (newRowId === id && !editValue.trim() && field === "business_name") {
-      const contact = contacts.find((c) => c.id === id);
-      if (contact && !contact.business_name && !contact.email && !contact.mobile_number) {
-        handleDelete(id);
-      }
-    }
     setNewRowId(null);
   };
 
