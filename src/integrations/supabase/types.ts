@@ -40,6 +40,8 @@ export type Database = {
           contact_count: number
           contact_name: string | null
           created_at: string
+          current_phase: number
+          demo_instructions: string | null
           email: string | null
           follow_up_at: string | null
           id: string
@@ -60,6 +62,8 @@ export type Database = {
           contact_count?: number
           contact_name?: string | null
           created_at?: string
+          current_phase?: number
+          demo_instructions?: string | null
           email?: string | null
           follow_up_at?: string | null
           id?: string
@@ -80,6 +84,8 @@ export type Database = {
           contact_count?: number
           contact_name?: string | null
           created_at?: string
+          current_phase?: number
+          demo_instructions?: string | null
           email?: string | null
           follow_up_at?: string | null
           id?: string
