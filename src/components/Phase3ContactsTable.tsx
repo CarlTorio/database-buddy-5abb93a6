@@ -834,10 +834,10 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
         );
 
       case "sales_stage": {
-        const stageStyles: Record<string, string> = {
-          "Deposit Paid": "bg-amber-500/20 text-amber-400 border-amber-500/30",
-          "Fully Paid": "bg-blue-500/20 text-blue-400 border-blue-500/30",
-          "Complete": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+        const salesStageColors: Record<string, string> = {
+          "Deposit Paid": "bg-amber-100 text-amber-700 border-amber-300",
+          "Fully Paid": "bg-blue-100 text-blue-700 border-blue-300",
+          "Complete": "bg-green-100 text-green-700 border-green-300",
         };
         return (
           <div className={baseClass} style={style}>
@@ -846,13 +846,13 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
                 value={contact.sales_stage}
                 onValueChange={(value) => handleUpdate(contact.id, "sales_stage", value, true)}
               >
-                <SelectTrigger className={`h-7 border rounded-md px-3 text-xs font-medium ${stageStyles[contact.sales_stage] || "bg-muted border-border"} focus:ring-1 focus:ring-primary`}>
+                <SelectTrigger className={`h-7 border rounded-md px-2 text-xs font-medium ${salesStageColors[contact.sales_stage] || "bg-secondary border-border"}`}>
                   <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border border-border">
+                <SelectContent>
                   {PHASE3_SALES_STAGES.map((stage) => (
-                    <SelectItem key={stage} value={stage} className="focus:bg-accent">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${stageStyles[stage]}`}>
+                    <SelectItem key={stage} value={stage}>
+                      <span className={`px-2 py-0.5 rounded border text-xs font-medium ${salesStageColors[stage]}`}>
                         {stage}
                       </span>
                     </SelectItem>

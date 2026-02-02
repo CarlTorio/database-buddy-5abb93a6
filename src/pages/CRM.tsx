@@ -108,12 +108,11 @@ const CRM = () => {
             </div>
           </div>
         </main>
-        <Footer />
       </div>;
   }
   return <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="flex-1 pt-20 px-4 lg:px-8">
+      <main className="flex-1 pt-20 px-4 lg:px-8 pb-8">
         <div className="w-full">
           <div className="mb-8">
             <div className="text-center">
@@ -169,7 +168,6 @@ const CRM = () => {
             </div>}
         </div>
       </main>
-      <Footer />
     </div>;
 };
 export default CRM;
