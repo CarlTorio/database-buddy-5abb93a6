@@ -842,28 +842,41 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
         );
       }
 
-      case "sales_stage":
+      case "sales_stage": {
+        const stageStyles: Record<string, string> = {
+          "Request Demo": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+          "Demo Created": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+          "Decision Pending": "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+          "Demo Approved": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+          "Undecided": "bg-orange-500/20 text-orange-400 border-orange-500/30",
+          "Rejected": "bg-red-500/20 text-red-400 border-red-500/30",
+          "Demo Stage": "bg-purple-500/20 text-purple-400 border-purple-500/30",
+          "Approved": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+        };
         return (
           <div className={baseClass} style={style}>
-            <Select
-              value={contact.sales_stage}
-              onValueChange={(value) => handleSalesStageChange(contact.id, value)}
-            >
-              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
-                <SelectValue>
-                  <span className={`${salesStageColors[contact.sales_stage] || "bg-gray-400 text-white"} px-2 py-0.5 rounded text-xs font-medium`}>
-                    {contact.sales_stage}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {phase2SalesStages.map((stage) => (
-                  <SelectItem key={stage} value={stage} className="text-sm">{stage}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="px-2 py-1 min-h-[32px] flex items-center text-sm w-full">
+              <Select
+                value={contact.sales_stage}
+                onValueChange={(value) => handleSalesStageChange(contact.id, value)}
+              >
+                <SelectTrigger className={`h-7 border rounded-md px-3 text-xs font-medium ${stageStyles[contact.sales_stage] || "bg-muted border-border"} focus:ring-1 focus:ring-primary`}>
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border border-border">
+                  {phase2SalesStages.map((stage) => (
+                    <SelectItem key={stage} value={stage} className="focus:bg-accent">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${stageStyles[stage]}`}>
+                        {stage}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         );
+      }
 
       case "demo_link":
         return (
