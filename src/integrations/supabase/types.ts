@@ -14,7 +14,194 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contact_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          assigned_to: string | null
+          business_name: string
+          category_id: string
+          contact_count: number
+          contact_name: string | null
+          created_at: string
+          current_phase: number
+          demo_instructions: string | null
+          demo_link: string | null
+          email: string | null
+          follow_up_at: string | null
+          id: string
+          last_contacted_at: string | null
+          lead_source: string | null
+          link: string | null
+          mobile_number: string | null
+          notes: string | null
+          priority_level: string | null
+          sales_stage: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          business_name?: string
+          category_id: string
+          contact_count?: number
+          contact_name?: string | null
+          created_at?: string
+          current_phase?: number
+          demo_instructions?: string | null
+          demo_link?: string | null
+          email?: string | null
+          follow_up_at?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          lead_source?: string | null
+          link?: string | null
+          mobile_number?: string | null
+          notes?: string | null
+          priority_level?: string | null
+          sales_stage?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          business_name?: string
+          category_id?: string
+          contact_count?: number
+          contact_name?: string | null
+          created_at?: string
+          current_phase?: number
+          demo_instructions?: string | null
+          demo_link?: string | null
+          email?: string | null
+          follow_up_at?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          lead_source?: string | null
+          link?: string | null
+          mobile_number?: string | null
+          notes?: string | null
+          priority_level?: string | null
+          sales_stage?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "contact_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          name: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          name: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_accounts: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          password: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          password: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          password?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_emails: {
+        Row: {
+          created_at: string
+          credits: number
+          email: string
+          id: string
+          last_copied_at: string | null
+          max_monthly_credits: number
+          monthly_credits: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          email: string
+          id?: string
+          last_copied_at?: string | null
+          max_monthly_credits?: number
+          monthly_credits?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          email?: string
+          id?: string
+          last_copied_at?: string | null
+          max_monthly_credits?: number
+          monthly_credits?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
