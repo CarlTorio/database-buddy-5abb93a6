@@ -135,6 +135,10 @@ const Phase2ContactsTable = ({ categoryId }: Phase2ContactsTableProps) => {
   const [requestDemoDialog, setRequestDemoDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
   const [demoInstructions, setDemoInstructions] = useState("");
 
+  // Approved negotiation price dialog
+  const [approvedDialog, setApprovedDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
+  const [negotiationPrice, setNegotiationPrice] = useState("");
+
   // Load column order from localStorage
   useEffect(() => {
     const storageKey = `contacts-column-order-phase2-${categoryId || 'default'}`;
@@ -525,17 +529,53 @@ const Phase2ContactsTable = ({ categoryId }: Phase2ContactsTableProps) => {
 
   const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
 
-  // Handle sales stage change with Request Demo dialog
+  // Handle sales stage change with Request Demo dialog or Approved dialog
   const handleSalesStageChange = async (contactId: string, newStage: string) => {
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact) return;
+
     if (newStage === "Request Demo") {
-      const contact = contacts.find(c => c.id === contactId);
-      if (contact) {
-        setDemoInstructions(contact.demo_instructions || "");
-        setRequestDemoDialog({ open: true, contact });
-      }
+      setDemoInstructions(contact.demo_instructions || "");
+      setRequestDemoDialog({ open: true, contact });
+    } else if (newStage === "Approved") {
+      setNegotiationPrice(contact.value?.toString() || "");
+      setApprovedDialog({ open: true, contact });
     } else {
       await handleUpdate(contactId, "sales_stage", newStage, true);
     }
+  };
+
+  // Save negotiation price and update sales stage to Approved
+  const handleSaveNegotiationPrice = async () => {
+    if (!approvedDialog.contact) return;
+    
+    const numValue = parseFloat(negotiationPrice.replace(/[^\d.]/g, ""));
+    const priceValue = isNaN(numValue) ? null : numValue;
+
+    const { error } = await supabase
+      .from("contacts")
+      .update({ 
+        sales_stage: "Approved",
+        value: priceValue,
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", approvedDialog.contact.id);
+
+    if (!error) {
+      setContacts(
+        contacts.map((c) =>
+          c.id === approvedDialog.contact!.id 
+            ? { ...c, sales_stage: "Approved", value: priceValue, updated_at: new Date().toISOString() } 
+            : c
+        )
+      );
+      toast.success("Deal approved with negotiation price");
+    } else {
+      toast.error("Failed to save approval");
+    }
+    
+    setApprovedDialog({ open: false, contact: null });
+    setNegotiationPrice("");
   };
 
   // Save demo instructions and update sales stage
@@ -1108,6 +1148,49 @@ const Phase2ContactsTable = ({ categoryId }: Phase2ContactsTableProps) => {
               </Button>
               <Button onClick={handleSaveDemoInstructions}>
                 Save & Set Request Demo
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approved Negotiation Price Dialog */}
+      <Dialog open={approvedDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setApprovedDialog({ open: false, contact: null });
+          setNegotiationPrice("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Approved - Set Negotiation Price</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {approvedDialog.contact && (
+              <p className="text-sm text-muted-foreground">
+                Business: {approvedDialog.contact.business_name || "Unnamed"}
+              </p>
+            )}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Negotiation Price</label>
+              <Input
+                type="text"
+                value={negotiationPrice}
+                onChange={(e) => setNegotiationPrice(e.target.value)}
+                placeholder="Enter negotiation price..."
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Enter the agreed negotiation price for this deal</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                setApprovedDialog({ open: false, contact: null });
+                setNegotiationPrice("");
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveNegotiationPrice}>
+                Approve Deal
               </Button>
             </div>
           </div>
