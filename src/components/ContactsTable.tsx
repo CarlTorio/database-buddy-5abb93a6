@@ -271,12 +271,17 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
       .order("created_at", { ascending: true });
 
     if (!error && data) {
-      // Filter by phase if specified (filtering in-memory until sales_stage column is added)
+      // Map sales_stage to status for compatibility and filter by phase
+      const mappedData = data.map((c: any) => ({
+        ...c,
+        status: c.sales_stage || "Lead",
+      }));
+      
       if (phase) {
-        const phaseFiltered = data.filter((c) => c.status === getPhaseStatus(phase));
+        const phaseFiltered = mappedData.filter((c) => c.status === getPhaseStatus(phase));
         setContacts(phaseFiltered);
       } else {
-        setContacts(data);
+        setContacts(mappedData);
       }
     }
     setLoading(false);
@@ -299,13 +304,14 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
       .insert({
         category_id: categoryId,
         business_name: "",
-        status: defaultStatus,
+        sales_stage: defaultStatus,
       })
       .select()
       .single();
 
     if (!error && data) {
-      setContacts([...contacts, data]);
+      const mappedContact = { ...data, status: (data as any).sales_stage || "Lead" };
+      setContacts([...contacts, mappedContact]);
       setNewRowId(data.id);
       startEditing(data.id, "business_name", "");
     } else {
@@ -318,7 +324,11 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
 
   const handleUpdate = useCallback(async (id: string, field: string, value: string, immediate = false) => {
     let updateValue: string | number | null;
+    let dbField = field;
+    
+    // Map status field to sales_stage in the database
     if (field === "status") {
+      dbField = "sales_stage";
       updateValue = value;
     } else if (field === "value") {
       const numValue = parseFloat(value.replace(/[^\d.]/g, ""));
@@ -344,7 +354,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     const performSave = async () => {
       const { error } = await supabase
         .from("contacts")
-        .update({ [field]: updateValue, updated_at: new Date().toISOString() })
+        .update({ [dbField]: updateValue, updated_at: new Date().toISOString() })
         .eq("id", id);
 
       if (error) {
