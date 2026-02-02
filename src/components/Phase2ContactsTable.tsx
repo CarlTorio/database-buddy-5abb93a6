@@ -289,6 +289,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
       .select("*")
       .eq("category_id", categoryId)
       .eq("current_phase", 2)
+      .neq("sales_stage", "Rejected") // Exclude rejected contacts
       .order("created_at", { ascending: true });
 
     if (!error && data) {
@@ -311,11 +312,18 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
       updateValue = typeof value === "string" ? (value.trim() || null) : value;
     }
     
-    setContacts(prev =>
-      prev.map((c) =>
-        c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
-      )
-    );
+    // Check if this is a sales_stage change to "Rejected" - remove from list
+    const isRejected = field === "sales_stage" && value === "Rejected";
+    
+    if (isRejected) {
+      setContacts(prev => prev.filter(c => c.id !== id));
+    } else {
+      setContacts(prev =>
+        prev.map((c) =>
+          c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
+        )
+      );
+    }
 
     const saveKey = `${id}-${field}`;
     
@@ -332,6 +340,11 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
       if (error) {
         console.error("Failed to save:", error);
         toast.error("Failed to save changes");
+        if (isRejected) {
+          fetchContacts();
+        }
+      } else if (isRejected) {
+        toast.success("Contact marked as rejected");
       }
       delete pendingSaveRef.current[saveKey];
     };

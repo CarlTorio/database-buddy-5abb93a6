@@ -292,6 +292,7 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
       .select("*")
       .eq("category_id", categoryId)
       .eq("current_phase", 3)
+      .neq("sales_stage", "Complete") // Exclude completed contacts
       .order("created_at", { ascending: true });
 
     if (!error && data) {
@@ -314,11 +315,18 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
       updateValue = typeof value === "string" ? (value.trim() || null) : value;
     }
     
-    setContacts(prev =>
-      prev.map((c) =>
-        c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
-      )
-    );
+    // Check if this is a sales_stage change to "Complete" - remove from list
+    const isComplete = field === "sales_stage" && value === "Complete";
+    
+    if (isComplete) {
+      setContacts(prev => prev.filter(c => c.id !== id));
+    } else {
+      setContacts(prev =>
+        prev.map((c) =>
+          c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
+        )
+      );
+    }
 
     const saveKey = `${id}-${field}`;
     
@@ -335,6 +343,11 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
       if (error) {
         console.error("Failed to save:", error);
         toast.error("Failed to save changes");
+        if (isComplete) {
+          fetchContacts();
+        }
+      } else if (isComplete) {
+        toast.success("Client marked as complete");
       }
       delete pendingSaveRef.current[saveKey];
     };
