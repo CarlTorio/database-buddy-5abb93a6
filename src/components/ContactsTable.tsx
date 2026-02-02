@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import {
@@ -8,71 +8,73 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, CalendarIcon, Flag, GripVertical, AlertTriangle } from "lucide-react";
+import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, GripVertical, AlertTriangle, User, Hash } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface EmailTemplate {
   subject: string;
   body: string;
 }
 
-type ColumnKey = "business_name" | "link" | "email" | "mobile" | "value" | "status" | "priority" | "follow_up" | "last_contacted" | "notes";
+// Phase 1 columns
+type Phase1ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "lead_source" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes";
 
-interface ColumnWidths {
+interface Phase1ColumnWidths {
+  assigned_to: number;
   business_name: number;
+  contact_name: number;
+  mobile_number: number;
   email: number;
-  mobile: number;
-  value: number;
-  status: number;
-  priority: number;
-  follow_up: number;
-  last_contacted: number;
   link: number;
+  lead_source: number;
+  sales_stage: number;
+  contact_count: number;
+  last_contacted_at: number;
   notes: number;
 }
 
-const DEFAULT_WIDTHS: ColumnWidths = {
+const PHASE1_DEFAULT_WIDTHS: Phase1ColumnWidths = {
+  assigned_to: 100,
   business_name: 150,
+  contact_name: 130,
+  mobile_number: 120,
   email: 150,
-  mobile: 120,
-  value: 80,
-  status: 100,
-  priority: 80,
-  follow_up: 120,
-  last_contacted: 120,
   link: 140,
+  lead_source: 110,
+  sales_stage: 120,
+  contact_count: 80,
+  last_contacted_at: 140,
   notes: 180,
 };
 
-const COLUMN_LABELS: Record<ColumnKey, string> = {
+const PHASE1_COLUMN_LABELS: Record<Phase1ColumnKey, string> = {
+  assigned_to: "Assigned",
   business_name: "Business Name",
-  link: "Link",
+  contact_name: "Contact Name",
+  mobile_number: "Number",
   email: "Email",
-  mobile: "Mobile",
-  value: "Value",
-  status: "Status",
-  priority: "Priority",
-  follow_up: "Follow Up",
-  last_contacted: "Last Contacted",
+  link: "Link",
+  lead_source: "Lead Source",
+  sales_stage: "Sales Stage",
+  contact_count: "# of Attempts",
+  last_contacted_at: "Last Update",
   notes: "Notes",
 };
 
-const DEFAULT_COLUMN_ORDER: ColumnKey[] = [
+const PHASE1_DEFAULT_COLUMN_ORDER: Phase1ColumnKey[] = [
+  "assigned_to",
   "business_name",
-  "link",
+  "contact_name",
+  "mobile_number",
   "email",
-  "mobile",
-  "value",
-  "status",
-  "priority",
-  "follow_up",
-  "last_contacted",
+  "link",
+  "lead_source",
+  "sales_stage",
+  "contact_count",
+  "last_contacted_at",
   "notes",
 ];
 
@@ -81,15 +83,18 @@ const MIN_WIDTH = 80;
 interface Contact {
   id: string;
   category_id: string;
+  assigned_to: string | null;
   business_name: string;
+  contact_name: string | null;
   email: string | null;
   mobile_number: string | null;
   value: number | null;
-  status: string;
+  sales_stage: string;
   link?: string | null;
   notes: string | null;
   last_contacted_at: string | null;
   contact_count: number;
+  lead_source: string | null;
   priority_level: string | null;
   follow_up_at: string | null;
   created_at: string;
@@ -105,66 +110,68 @@ interface ContactsTableProps {
 }
 
 const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
+  const { userName } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [newRowId, setNewRowId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
+  const [columnWidths, setColumnWidths] = useState<Phase1ColumnWidths>(PHASE1_DEFAULT_WIDTHS);
   const startWidthRef = useRef<number>(0);
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
-  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(DEFAULT_COLUMN_ORDER);
+  const [columnOrder, setColumnOrder] = useState<Phase1ColumnKey[]>(PHASE1_DEFAULT_COLUMN_ORDER);
 
   // Load column order from localStorage on mount and when categoryId changes
   useEffect(() => {
-    const storageKey = `contacts-column-order-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-phase1-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === DEFAULT_COLUMN_ORDER.length) {
-          setColumnOrder(parsed as ColumnKey[]);
+        if (Array.isArray(parsed) && parsed.length === PHASE1_DEFAULT_COLUMN_ORDER.length) {
+          setColumnOrder(parsed as Phase1ColumnKey[]);
           return;
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
-    setColumnOrder(DEFAULT_COLUMN_ORDER);
+    setColumnOrder(PHASE1_DEFAULT_COLUMN_ORDER);
   }, [categoryId]);
 
   // Save column order to localStorage whenever it changes
   useEffect(() => {
-    const storageKey = `contacts-column-order-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-phase1-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnOrder));
   }, [columnOrder, categoryId]);
 
   // Load column widths from localStorage on mount and when categoryId changes
   useEffect(() => {
-    const storageKey = `contacts-column-widths-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-phase1-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (typeof parsed === 'object' && parsed !== null) {
-          setColumnWidths({ ...DEFAULT_WIDTHS, ...parsed });
+          setColumnWidths({ ...PHASE1_DEFAULT_WIDTHS, ...parsed });
           return;
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
-    setColumnWidths(DEFAULT_WIDTHS);
+    setColumnWidths(PHASE1_DEFAULT_WIDTHS);
   }, [categoryId]);
 
   // Save column widths to localStorage whenever they change
   useEffect(() => {
-    const storageKey = `contacts-column-widths-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-phase1-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnWidths));
   }, [columnWidths, categoryId]);
-  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+
+  const [draggedColumn, setDraggedColumn] = useState<Phase1ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<Phase1ColumnKey | null>(null);
 
   // Fetch email template
   useEffect(() => {
@@ -182,7 +189,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   }, []);
 
   const handleResizeStart = useCallback(
-    (key: keyof ColumnWidths) => (e: React.MouseEvent) => {
+    (key: keyof Phase1ColumnWidths) => (e: React.MouseEvent) => {
       e.preventDefault();
       startWidthRef.current = columnWidths[key];
       const startX = e.clientX;
@@ -211,13 +218,13 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   );
 
   // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, columnKey: ColumnKey) => {
+  const handleDragStart = (e: React.DragEvent, columnKey: Phase1ColumnKey) => {
     setDraggedColumn(columnKey);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", columnKey);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnKey: ColumnKey) => {
+  const handleDragOver = (e: React.DragEvent, columnKey: Phase1ColumnKey) => {
     e.preventDefault();
     if (draggedColumn && draggedColumn !== columnKey) {
       setDragOverColumn(columnKey);
@@ -228,7 +235,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetColumn: ColumnKey) => {
+  const handleDrop = (e: React.DragEvent, targetColumn: Phase1ColumnKey) => {
     e.preventDefault();
     if (!draggedColumn || draggedColumn === targetColumn) {
       setDraggedColumn(null);
@@ -271,17 +278,12 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
       .order("created_at", { ascending: true });
 
     if (!error && data) {
-      // Map sales_stage to status for compatibility and filter by phase
-      const mappedData = data.map((c: any) => ({
-        ...c,
-        status: c.sales_stage || "Lead",
-      }));
-      
+      // Filter by phase if specified
       if (phase) {
-        const phaseFiltered = mappedData.filter((c) => c.status === getPhaseStatus(phase));
+        const phaseFiltered = data.filter((c: any) => c.sales_stage === getPhaseStatus(phase));
         setContacts(phaseFiltered);
       } else {
-        setContacts(mappedData);
+        setContacts(data);
       }
     }
     setLoading(false);
@@ -305,13 +307,14 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
         category_id: categoryId,
         business_name: "",
         sales_stage: defaultStatus,
+        assigned_to: userName || null,
+        contact_count: 0,
       })
       .select()
       .single();
 
     if (!error && data) {
-      const mappedContact = { ...data, status: (data as any).sales_stage || "Lead" };
-      setContacts([...contacts, mappedContact]);
+      setContacts([...contacts, data]);
       setNewRowId(data.id);
       startEditing(data.id, "business_name", "");
     } else {
@@ -322,19 +325,16 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   // Ref to track pending saves for debounce
   const pendingSaveRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
-  const handleUpdate = useCallback(async (id: string, field: string, value: string, immediate = false) => {
+  const handleUpdate = useCallback(async (id: string, field: string, value: string | number, immediate = false) => {
     let updateValue: string | number | null;
-    let dbField = field;
     
-    // Map status field to sales_stage in the database
-    if (field === "status") {
-      dbField = "sales_stage";
-      updateValue = value;
+    if (field === "contact_count") {
+      updateValue = typeof value === "number" ? value : parseInt(value as string) || 0;
     } else if (field === "value") {
-      const numValue = parseFloat(value.replace(/[^\d.]/g, ""));
+      const numValue = parseFloat(String(value).replace(/[^\d.]/g, ""));
       updateValue = isNaN(numValue) ? null : numValue;
     } else {
-      updateValue = value.trim() || null;
+      updateValue = typeof value === "string" ? (value.trim() || null) : value;
     }
     
     // Optimistic update - update UI immediately
@@ -354,7 +354,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     const performSave = async () => {
       const { error } = await supabase
         .from("contacts")
-        .update({ [dbField]: updateValue, updated_at: new Date().toISOString() })
+        .update({ [field]: updateValue, updated_at: new Date().toISOString() })
         .eq("id", id);
 
       if (error) {
@@ -464,77 +464,57 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     }
   };
 
+  // Handle increment attempts count
+  const handleIncrementAttempts = async (contactId: string) => {
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact) return;
+
+    const newCount = (contact.contact_count || 0) + 1;
+    await handleUpdate(contactId, "contact_count", newCount, true);
+  };
+
+  // Handle set last update to current date/time
+  const handleSetLastUpdate = async (contactId: string) => {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("contacts")
+      .update({ 
+        last_contacted_at: now,
+        updated_at: now 
+      })
+      .eq("id", contactId);
+
+    if (!error) {
+      setContacts(
+        contacts.map((c) =>
+          c.id === contactId 
+            ? { ...c, last_contacted_at: now, updated_at: now } 
+            : c
+        )
+      );
+      toast.success("Last update set to now");
+    }
+  };
+
   const formatLastContacted = (date: string | null) => {
     if (!date) return null;
     return format(new Date(date), "MMM d, yyyy h:mm a");
   };
 
-  const statusColors: Record<string, string> = {
+  const salesStageColors: Record<string, string> = {
     Lead: "bg-slate-100 text-slate-700 border-slate-300",
-    Contacted: "bg-blue-100 text-blue-700 border-blue-300",
-    Rejected: "bg-red-100 text-red-700 border-red-300",
+    Approached: "bg-blue-100 text-blue-700 border-blue-300",
     "Demo Stage": "bg-purple-100 text-purple-700 border-purple-300",
-    "Decision Pending": "bg-orange-100 text-orange-700 border-orange-300",
     "Closed Won": "bg-green-100 text-green-700 border-green-300",
     "Closed Lost": "bg-gray-100 text-gray-700 border-gray-300",
-    Completed: "bg-emerald-100 text-emerald-700 border-emerald-300",
   };
 
-  const statusPriority: Record<string, number> = {
-    Lead: 1,
-    Rejected: 2,
-    "Closed Lost": 3,
-    Contacted: 4,
-    "Decision Pending": 5,
-    "Demo Stage": 6,
-    "Closed Won": 7,
-    Completed: 8,
+  const leadSourceColors: Record<string, string> = {
+    "Cold Call": "bg-blue-100 text-blue-700 border-blue-300",
+    "Messenger": "bg-indigo-100 text-indigo-700 border-indigo-300",
+    "Referral": "bg-green-100 text-green-700 border-green-300",
+    "Ads": "bg-orange-100 text-orange-700 border-orange-300",
   };
-
-  const priorityColors: Record<string, string> = {
-    high: "bg-green-100 text-green-700 border-green-300",
-    medium: "bg-orange-100 text-orange-700 border-orange-300",
-    low: "bg-red-100 text-red-700 border-red-300",
-  };
-
-  const handleFollowUpChange = async (contactId: string, date: Date | undefined) => {
-    const dateValue = date ? date.toISOString() : null;
-    const { error } = await supabase
-      .from("contacts")
-      .update({ follow_up_at: dateValue, updated_at: new Date().toISOString() })
-      .eq("id", contactId);
-
-    if (!error) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === contactId ? { ...c, follow_up_at: dateValue, updated_at: new Date().toISOString() } : c
-        )
-      );
-    }
-  };
-
-  const handlePriorityChange = async (contactId: string, priority: string) => {
-    const { error } = await supabase
-      .from("contacts")
-      .update({ priority_level: priority, updated_at: new Date().toISOString() })
-      .eq("id", contactId);
-
-    if (!error) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === contactId ? { ...c, priority_level: priority, updated_at: new Date().toISOString() } : c
-        )
-      );
-    }
-  };
-
-  const activeContacts = contacts
-    .filter((c) => c.status !== "Completed")
-    .sort((a, b) => (statusPriority[b.status] || 0) - (statusPriority[a.status] || 0));
-
-  const completedContacts = contacts
-    .filter((c) => c.status === "Completed")
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   // Duplicate detection for business_name, link, email, mobile
   const findDuplicates = (field: "business_name" | "link" | "email" | "mobile_number", contactId: string, value: string | null) => {
@@ -542,7 +522,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     const normalizedValue = value.trim().toLowerCase();
     return contacts.filter(
       (c) => {
-        const fieldValue = field === "mobile_number" ? c.mobile_number : c[field as keyof Contact];
+        const fieldValue = c[field as keyof Contact];
         return c.id !== contactId && 
           fieldValue && 
           typeof fieldValue === "string" && 
@@ -566,7 +546,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     );
   };
 
-  const ResizeHandle = ({ columnKey }: { columnKey: keyof ColumnWidths }) => (
+  const ResizeHandle = ({ columnKey }: { columnKey: keyof Phase1ColumnWidths }) => (
     <div
       className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary active:bg-primary transition-colors z-10"
       onMouseDown={handleResizeStart(columnKey)}
@@ -575,14 +555,42 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     </div>
   );
 
-  // Render column cell content for active contacts
-  const renderActiveCell = (contact: Contact, columnKey: ColumnKey, isLast: boolean) => {
+  const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
+
+  // Render column cell content
+  const renderCell = (contact: Contact, columnKey: Phase1ColumnKey, isLast: boolean) => {
     const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
     const style = isLast 
       ? { minWidth: columnWidths[columnKey] } 
       : { width: columnWidths[columnKey] };
 
     switch (columnKey) {
+      case "assigned_to":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="flex items-center gap-2 px-2 py-1.5 w-full">
+              <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              {editingCell?.id === contact.id && editingCell?.field === "assigned_to" ? (
+                <Input
+                  ref={inputRef}
+                  value={editValue}
+                  onChange={(e) => handleInputChange(contact.id, "assigned_to", e.target.value)}
+                  onBlur={() => handleBlur(contact.id, "assigned_to")}
+                  onKeyDown={(e) => handleKeyDown(e, contact.id, "assigned_to")}
+                  className="h-6 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary text-sm"
+                />
+              ) : (
+                <span
+                  className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm truncate"
+                  onClick={() => startEditing(contact.id, "assigned_to", contact.assigned_to)}
+                >
+                  {contact.assigned_to || <span className="text-muted-foreground/50 text-sm">Empty</span>}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+
       case "business_name": {
         const duplicates = findDuplicates("business_name", contact.id, contact.business_name);
         return (
@@ -610,6 +618,123 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
                 </>
               )}
             </div>
+          </div>
+        );
+      }
+
+      case "contact_name":
+        return (
+          <div className={baseClass} style={style}>
+            {editingCell?.id === contact.id && editingCell?.field === "contact_name" ? (
+              <Input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => handleInputChange(contact.id, "contact_name", e.target.value)}
+                onBlur={() => handleBlur(contact.id, "contact_name")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "contact_name")}
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
+              />
+            ) : (
+              <div className="px-3 py-1 min-h-[32px] flex items-center text-sm w-full">
+                <span
+                  className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
+                  onClick={() => startEditing(contact.id, "contact_name", contact.contact_name)}
+                >
+                  {contact.contact_name || <span className="text-muted-foreground/50">Empty</span>}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+
+      case "mobile_number": {
+        const duplicates = findDuplicates("mobile_number", contact.id, contact.mobile_number);
+        return (
+          <div className={baseClass} style={style}>
+            {editingCell?.id === contact.id && editingCell?.field === "mobile_number" ? (
+              <Input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => handleInputChange(contact.id, "mobile_number", e.target.value)}
+                onBlur={() => handleBlur(contact.id, "mobile_number")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "mobile_number")}
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
+              />
+            ) : (
+              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
+                {contact.mobile_number ? (
+                  <>
+                    <span
+                      className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
+                      onClick={() => startEditing(contact.id, "mobile_number", contact.mobile_number)}
+                    >
+                      {contact.mobile_number}
+                    </span>
+                    <DuplicateWarning duplicates={duplicates} fieldLabel="number" />
+                    <Phone
+                      className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePhoneCall(contact.mobile_number!, contact.id);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <span
+                    className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
+                    onClick={() => startEditing(contact.id, "mobile_number", contact.mobile_number)}
+                  >
+                    Empty
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case "email": {
+        const duplicates = findDuplicates("email", contact.id, contact.email);
+        return (
+          <div className={baseClass} style={style}>
+            {editingCell?.id === contact.id && editingCell?.field === "email" ? (
+              <Input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => handleInputChange(contact.id, "email", e.target.value)}
+                onBlur={() => handleBlur(contact.id, "email")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "email")}
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
+              />
+            ) : (
+              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
+                {contact.email ? (
+                  <>
+                    <span
+                      className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
+                      onClick={() => startEditing(contact.id, "email", contact.email)}
+                    >
+                      {contact.email}
+                    </span>
+                    <DuplicateWarning duplicates={duplicates} fieldLabel="email" />
+                    <Mail
+                      className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openGmailCompose(contact.email!, contact.id);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <span
+                    className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
+                    onClick={() => startEditing(contact.id, "email", contact.email)}
+                  >
+                    Empty
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         );
       }
@@ -672,229 +797,82 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
         );
       }
 
-      case "email": {
-        const duplicates = findDuplicates("email", contact.id, contact.email);
-        return (
-          <div className={baseClass} style={style}>
-            {editingCell?.id === contact.id && editingCell?.field === "email" ? (
-              <Input
-                ref={inputRef}
-                value={editValue}
-                onChange={(e) => handleInputChange(contact.id, "email", e.target.value)}
-                onBlur={() => handleBlur(contact.id, "email")}
-                onKeyDown={(e) => handleKeyDown(e, contact.id, "email")}
-                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
-              />
-            ) : (
-              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
-                {contact.email ? (
-                  <>
-                    <span
-                      className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
-                      onClick={() => startEditing(contact.id, "email", contact.email)}
-                    >
-                      {contact.email}
-                    </span>
-                    <DuplicateWarning duplicates={duplicates} fieldLabel="email" />
-                    <Mail
-                      className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openGmailCompose(contact.email!, contact.id);
-                      }}
-                    />
-                  </>
-                ) : (
-                  <span
-                    className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
-                    onClick={() => startEditing(contact.id, "email", contact.email)}
-                  >
-                    Empty
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      case "mobile": {
-        const duplicates = findDuplicates("mobile_number", contact.id, contact.mobile_number);
-        return (
-          <div className={baseClass} style={style}>
-            {editingCell?.id === contact.id && editingCell?.field === "mobile_number" ? (
-              <Input
-                ref={inputRef}
-                value={editValue}
-                onChange={(e) => handleInputChange(contact.id, "mobile_number", e.target.value)}
-                onBlur={() => handleBlur(contact.id, "mobile_number")}
-                onKeyDown={(e) => handleKeyDown(e, contact.id, "mobile_number")}
-                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
-              />
-            ) : (
-              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
-                {contact.mobile_number ? (
-                  <>
-                    <span
-                      className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
-                      onClick={() => startEditing(contact.id, "mobile_number", contact.mobile_number)}
-                    >
-                      {contact.mobile_number}
-                    </span>
-                    <DuplicateWarning duplicates={duplicates} fieldLabel="mobile" />
-                    <Phone
-                      className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePhoneCall(contact.mobile_number!, contact.id);
-                      }}
-                    />
-                  </>
-                ) : (
-                  <span
-                    className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
-                    onClick={() => startEditing(contact.id, "mobile_number", contact.mobile_number)}
-                  >
-                    Empty
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      case "value":
-        return (
-          <div className={baseClass} style={style}>
-            {editingCell?.id === contact.id && editingCell?.field === "value" ? (
-              <Input
-                ref={inputRef}
-                value={editValue}
-                onChange={(e) => handleInputChange(contact.id, "value", e.target.value)}
-                onBlur={() => handleBlur(contact.id, "value")}
-                onKeyDown={(e) => handleKeyDown(e, contact.id, "value")}
-                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
-                placeholder="0"
-              />
-            ) : (
-              <div
-                className="cursor-text px-3 py-1 min-h-[32px] flex items-center text-sm w-full hover:bg-muted/50"
-                onClick={() => startEditing(contact.id, "value", contact.value?.toString() || "")}
-              >
-                {contact.value != null ? (
-                  <span className="font-medium">₱{contact.value.toLocaleString()}</span>
-                ) : (
-                  <span className="text-muted-foreground/50">₱0</span>
-                )}
-              </div>
-            )}
-          </div>
-        );
-
-      case "status":
+      case "lead_source":
         return (
           <div className={baseClass} style={style}>
             <Select
-              value={contact.status}
-              onValueChange={(value) => handleUpdate(contact.id, "status", value, true)}
+              value={contact.lead_source || ""}
+              onValueChange={(value) => handleUpdate(contact.id, "lead_source", value, true)}
+            >
+              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
+                <SelectValue placeholder="Select...">
+                  {contact.lead_source ? (
+                    <span className={`${leadSourceColors[contact.lead_source] || "bg-gray-100 text-gray-700"} px-2 py-0.5 rounded text-xs font-medium`}>
+                      {contact.lead_source}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/50 text-xs">Select...</span>
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Cold Call" className="text-sm">Cold Call</SelectItem>
+                <SelectItem value="Messenger" className="text-sm">Messenger</SelectItem>
+                <SelectItem value="Referral" className="text-sm">Referral</SelectItem>
+                <SelectItem value="Ads" className="text-sm">Ads</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
+      case "sales_stage":
+        return (
+          <div className={baseClass} style={style}>
+            <Select
+              value={contact.sales_stage}
+              onValueChange={(value) => handleUpdate(contact.id, "sales_stage", value, true)}
             >
               <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
                 <SelectValue>
-                  <span className={`${statusColors[contact.status] || "bg-gray-400 text-white"} px-2 py-0.5 rounded text-xs font-medium`}>
-                    {contact.status}
+                  <span className={`${salesStageColors[contact.sales_stage] || "bg-gray-400 text-white"} px-2 py-0.5 rounded text-xs font-medium`}>
+                    {contact.sales_stage}
                   </span>
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
-                <SelectItem value="Contacted" className="text-sm">Contacted</SelectItem>
-                <SelectItem value="Rejected" className="text-sm">Rejected</SelectItem>
+                <SelectItem value="Approached" className="text-sm">Approached</SelectItem>
                 <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
-                <SelectItem value="Decision Pending" className="text-sm">Decision Pending</SelectItem>
-                <SelectItem value="Closed Won" className="text-sm">Closed Won</SelectItem>
-                <SelectItem value="Closed Lost" className="text-sm">Closed Lost</SelectItem>
-                <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
               </SelectContent>
             </Select>
           </div>
         );
 
-      case "priority":
+      case "contact_count":
         return (
           <div className={baseClass} style={style}>
-            <Select
-              value={contact.priority_level || "low"}
-              onValueChange={(value) => handlePriorityChange(contact.id, value)}
+            <div 
+              className="px-3 py-1 min-h-[32px] flex items-center justify-center cursor-pointer hover:bg-muted/50 w-full"
+              onClick={() => handleIncrementAttempts(contact.id)}
+              title="Click to increment attempts"
             >
-              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
-                <SelectValue>
-                  <span className={`${priorityColors[contact.priority_level || "low"]} px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1`}>
-                    <Flag className="w-3 h-3" />
-                    {(contact.priority_level || "low").charAt(0).toUpperCase() + (contact.priority_level || "low").slice(1)}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="high" className="text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-green-500" />
-                    High
-                  </span>
-                </SelectItem>
-                <SelectItem value="medium" className="text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-orange-500" />
-                    Medium
-                  </span>
-                </SelectItem>
-                <SelectItem value="low" className="text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-red-500" />
-                    Low
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              <div className="flex items-center gap-1">
+                <Hash className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="min-w-[24px] h-6 flex items-center justify-center bg-primary/10 text-primary text-sm font-medium rounded px-2">
+                  {contact.contact_count || 0}
+                </span>
+              </div>
+            </div>
           </div>
         );
 
-      case "follow_up":
-        return (
-          <div className={baseClass} style={style}>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full h-full justify-start text-left font-normal rounded-none text-sm px-3",
-                    !contact.follow_up_at && "text-muted-foreground/50"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                  {contact.follow_up_at ? format(new Date(contact.follow_up_at), "MMM d, yyyy") : "Set date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={contact.follow_up_at ? new Date(contact.follow_up_at) : undefined}
-                  onSelect={(date) => handleFollowUpChange(contact.id, date)}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        );
-
-      case "last_contacted":
+      case "last_contacted_at":
         return (
           <div className={baseClass} style={style}>
             <div 
               className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded w-full"
-              onClick={() => trackContact(contact.id)}
-              title="Click to log contact"
+              onClick={() => handleSetLastUpdate(contact.id)}
+              title="Click to set to current date/time"
             >
               {contact.last_contacted_at ? (
                 <div className="flex items-center gap-2 w-full">
@@ -902,12 +880,12 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
                   <span className="truncate flex-1 text-xs">
                     {formatLastContacted(contact.last_contacted_at)}
                   </span>
-                  <div className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-primary/10 text-primary text-xs font-medium rounded">
-                    {contact.contact_count || 0}
-                  </div>
                 </div>
               ) : (
-                <span className="text-muted-foreground/50 text-xs">Never</span>
+                <span className="text-muted-foreground/50 text-xs flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  Click to set
+                </span>
               )}
             </div>
           </div>
@@ -927,194 +905,12 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
               />
             ) : (
               <div
-                className="cursor-text px-3 py-1.5 min-h-[32px] flex-1 hover:bg-muted/50 text-sm whitespace-pre-wrap break-words"
+                className="cursor-text px-3 py-1.5 min-h-[32px] flex-1 text-sm whitespace-pre-wrap break-words hover:bg-muted/50 w-full"
                 onClick={() => startEditing(contact.id, "notes", contact.notes)}
               >
-                {contact.notes || <span className="text-muted-foreground/50 text-sm">Empty</span>}
+                {contact.notes || <span className="text-muted-foreground/50">Empty</span>}
               </div>
             )}
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  // Render column cell for completed contacts (read-only style)
-  const renderCompletedCell = (contact: Contact, columnKey: ColumnKey, isLast: boolean) => {
-    const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
-    const style = isLast 
-      ? { minWidth: columnWidths[columnKey] } 
-      : { width: columnWidths[columnKey] };
-
-    switch (columnKey) {
-      case "business_name":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="flex items-center gap-2 px-2 py-1.5">
-              <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <span className="text-sm truncate">{contact.business_name || "—"}</span>
-            </div>
-          </div>
-        );
-
-      case "link":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
-              {contact.link ? (
-                <a
-                  href={contact.link.startsWith("http") ? contact.link : `https://${contact.link}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline truncate"
-                >
-                  {contact.link}
-                </a>
-              ) : (
-                <span className="text-muted-foreground/50">—</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case "email":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
-              {contact.email ? (
-                <>
-                  <span className="truncate flex-1">{contact.email}</span>
-                  <Mail
-                    className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => openGmailCompose(contact.email!, contact.id)}
-                  />
-                </>
-              ) : (
-                <span className="text-muted-foreground/50">—</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case "mobile":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
-              {contact.mobile_number ? (
-                <>
-                  <span className="truncate flex-1">{contact.mobile_number}</span>
-                  <Phone
-                    className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => handlePhoneCall(contact.mobile_number!, contact.id)}
-                  />
-                </>
-              ) : (
-                <span className="text-muted-foreground/50">—</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case "status":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center">
-              <Select
-                value={contact.status}
-                onValueChange={(value) => handleUpdate(contact.id, "status", value)}
-              >
-                <SelectTrigger className="h-auto border-0 p-0 focus:ring-0 text-sm">
-                  <SelectValue>
-                    <span className={`${statusColors[contact.status]} px-2 py-0.5 rounded text-xs font-medium`}>
-                      {contact.status}
-                    </span>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
-                  <SelectItem value="Contacted" className="text-sm">Contacted</SelectItem>
-                  <SelectItem value="Rejected" className="text-sm">Rejected</SelectItem>
-                  <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
-                  <SelectItem value="Decision Pending" className="text-sm">Decision Pending</SelectItem>
-                  <SelectItem value="Closed Won" className="text-sm">Closed Won</SelectItem>
-                  <SelectItem value="Closed Lost" className="text-sm">Closed Lost</SelectItem>
-                  <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        );
-
-      case "value":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
-              {contact.value != null ? (
-                <span className="font-medium">₱{contact.value.toLocaleString()}</span>
-              ) : (
-                <span className="text-muted-foreground/50">₱0</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case "priority":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center">
-              <span className={`${priorityColors[contact.priority_level || "low"]} px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1`}>
-                <Flag className="w-3 h-3" />
-                {(contact.priority_level || "low").charAt(0).toUpperCase() + (contact.priority_level || "low").slice(1)}
-              </span>
-            </div>
-          </div>
-        );
-
-      case "follow_up":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center text-sm">
-              {contact.follow_up_at ? (
-                <span className="flex items-center gap-2">
-                  <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                  {format(new Date(contact.follow_up_at), "MMM d, yyyy")}
-                </span>
-              ) : (
-                <span className="text-muted-foreground/50">—</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case "last_contacted":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm">
-              {contact.last_contacted_at ? (
-                <div className="flex items-center gap-2 w-full">
-                  <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate flex-1 text-xs">
-                    {formatLastContacted(contact.last_contacted_at)}
-                  </span>
-                  <div className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-primary/10 text-primary text-xs font-medium rounded">
-                    {contact.contact_count || 0}
-                  </div>
-                </div>
-              ) : (
-                <span className="text-muted-foreground/50 text-xs">Never</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case "notes":
-        return (
-          <div className={baseClass} style={style}>
-            <div className="px-3 py-1.5 min-h-[32px] flex-1 text-sm whitespace-pre-wrap break-words">
-              {contact.notes || <span className="text-muted-foreground/50">—</span>}
-            </div>
           </div>
         );
 
@@ -1156,7 +952,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
             >
               <div className="flex items-center gap-1">
                 <GripVertical className="w-3 h-3 text-muted-foreground/50" />
-                {COLUMN_LABELS[columnKey]}
+                {PHASE1_COLUMN_LABELS[columnKey]}
               </div>
               <ResizeHandle columnKey={columnKey} />
             </div>
@@ -1164,8 +960,8 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
         })}
       </div>
 
-      {/* Active Rows */}
-      {activeContacts.map((contact) => (
+      {/* Rows */}
+      {contacts.map((contact) => (
         <div
           key={contact.id}
           className="flex border-b border-border hover:bg-muted/30 group"
@@ -1174,7 +970,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
             const isLast = index === columnOrder.length - 1;
             return (
               <div key={columnKey} className="contents">
-                {renderActiveCell(contact, columnKey, isLast)}
+                {renderCell(contact, columnKey, isLast)}
               </div>
             );
           })}
@@ -1195,56 +991,6 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
         <Plus className="w-4 h-4" />
         <span>New</span>
       </button>
-
-      {/* Completed Section */}
-      {completedContacts.length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold mb-3 px-3 text-emerald-600">Completed ({completedContacts.length})</h3>
-          <div className="border border-border rounded-lg">
-            {/* Completed Header */}
-            <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
-              {columnOrder.map((columnKey, index) => {
-                const isLast = index === columnOrder.length - 1;
-                return (
-                  <div
-                    key={columnKey}
-                    className={cn(
-                      "px-3 py-2 font-medium",
-                      isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0"
-                    )}
-                    style={isLast ? { minWidth: columnWidths[columnKey] } : { width: columnWidths[columnKey] }}
-                  >
-                    {COLUMN_LABELS[columnKey]}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Completed Rows */}
-            {completedContacts.map((contact) => (
-              <div
-                key={contact.id}
-                className="flex border-b border-border hover:bg-muted/30 group last:border-b-0"
-              >
-                {columnOrder.map((columnKey, index) => {
-                  const isLast = index === columnOrder.length - 1;
-                  return (
-                    <div key={columnKey} className="contents">
-                      {renderCompletedCell(contact, columnKey, isLast)}
-                    </div>
-                  );
-                })}
-                <button
-                  onClick={() => handleDelete(contact.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
