@@ -1024,7 +1024,7 @@ const Phase2ContactsTable = ({ categoryId, onContactMovedToPhase3 }: Phase2Conta
     <>
       <div className="w-full overflow-x-auto scrollbar-hide border border-border rounded-lg">
         {/* Header */}
-        <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
+        <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-900">
           {columnOrder.map((columnKey, index) => {
             const isLast = index === columnOrder.length - 1;
             return (

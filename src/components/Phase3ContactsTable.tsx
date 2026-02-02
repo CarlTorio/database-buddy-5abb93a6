@@ -943,7 +943,7 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
     <>
       <div className="border border-border rounded-lg overflow-x-auto scrollbar-hide">
         {/* Header */}
-        <div className="flex bg-muted/50 border-b border-border">
+        <div className="flex bg-slate-900 border-b border-border">
           {columnOrder.map((columnKey, index) => {
             const isLast = index === columnOrder.length - 1;
             return (
