@@ -8,70 +8,74 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, GripVertical, AlertTriangle, User, Hash } from "lucide-react";
+import { Plus, FileText, Trash2, ExternalLink, Mail, Phone, Clock, GripVertical, AlertTriangle, User, Hash, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 interface EmailTemplate {
   subject: string;
   body: string;
 }
 
-// Phase 1 columns
-type Phase1ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "lead_source" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes";
+// Phase 2 columns (no lead_source in main view, has eye button instead)
+type Phase2ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes";
 
-interface Phase1ColumnWidths {
+interface Phase2ColumnWidths {
   assigned_to: number;
   business_name: number;
   contact_name: number;
   mobile_number: number;
   email: number;
   link: number;
-  lead_source: number;
   sales_stage: number;
   contact_count: number;
   last_contacted_at: number;
   notes: number;
 }
 
-const PHASE1_DEFAULT_WIDTHS: Phase1ColumnWidths = {
+const PHASE2_DEFAULT_WIDTHS: Phase2ColumnWidths = {
   assigned_to: 100,
   business_name: 150,
   contact_name: 130,
   mobile_number: 120,
   email: 150,
   link: 140,
-  lead_source: 110,
-  sales_stage: 120,
+  sales_stage: 140,
   contact_count: 80,
   last_contacted_at: 140,
   notes: 180,
 };
 
-const PHASE1_COLUMN_LABELS: Record<Phase1ColumnKey, string> = {
+const PHASE2_COLUMN_LABELS: Record<Phase2ColumnKey, string> = {
   assigned_to: "Assigned",
   business_name: "Business Name",
   contact_name: "Contact Name",
   mobile_number: "Number",
   email: "Email",
   link: "Link",
-  lead_source: "Lead Source",
   sales_stage: "Sales Stage",
   contact_count: "# of Attempts",
   last_contacted_at: "Last Update",
   notes: "Notes",
 };
 
-const PHASE1_DEFAULT_COLUMN_ORDER: Phase1ColumnKey[] = [
+const PHASE2_DEFAULT_COLUMN_ORDER: Phase2ColumnKey[] = [
   "assigned_to",
   "business_name",
   "contact_name",
   "mobile_number",
   "email",
   "link",
-  "lead_source",
   "sales_stage",
   "contact_count",
   "last_contacted_at",
@@ -99,77 +103,79 @@ interface Contact {
   follow_up_at: string | null;
   created_at: string;
   updated_at: string;
+  current_phase: number;
+  demo_instructions: string | null;
 }
 
-interface ContactsTableProps {
+interface Phase2ContactsTableProps {
   categoryId: string;
 }
 
-const ContactsTable = ({ categoryId }: ContactsTableProps) => {
+const Phase2ContactsTable = ({ categoryId }: Phase2ContactsTableProps) => {
   const { userName } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [newRowId, setNewRowId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [columnWidths, setColumnWidths] = useState<Phase1ColumnWidths>(PHASE1_DEFAULT_WIDTHS);
+  const [columnWidths, setColumnWidths] = useState<Phase2ColumnWidths>(PHASE2_DEFAULT_WIDTHS);
   const startWidthRef = useRef<number>(0);
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
-  const [columnOrder, setColumnOrder] = useState<Phase1ColumnKey[]>(PHASE1_DEFAULT_COLUMN_ORDER);
+  const [columnOrder, setColumnOrder] = useState<Phase2ColumnKey[]>(PHASE2_DEFAULT_COLUMN_ORDER);
 
-  // Load column order from localStorage on mount and when categoryId changes
+  // Lead Source dialog
+  const [leadSourceDialog, setLeadSourceDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
+  
+  // Request Demo dialog
+  const [requestDemoDialog, setRequestDemoDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
+  const [demoInstructions, setDemoInstructions] = useState("");
+
+  // Load column order from localStorage
   useEffect(() => {
-    const storageKey = `contacts-column-order-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-phase2-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === PHASE1_DEFAULT_COLUMN_ORDER.length) {
-          setColumnOrder(parsed as Phase1ColumnKey[]);
+        if (Array.isArray(parsed) && parsed.length === PHASE2_DEFAULT_COLUMN_ORDER.length) {
+          setColumnOrder(parsed as Phase2ColumnKey[]);
           return;
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
-    setColumnOrder(PHASE1_DEFAULT_COLUMN_ORDER);
+    setColumnOrder(PHASE2_DEFAULT_COLUMN_ORDER);
   }, [categoryId]);
 
-  // Save column order to localStorage whenever it changes
   useEffect(() => {
-    const storageKey = `contacts-column-order-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-phase2-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnOrder));
   }, [columnOrder, categoryId]);
 
-  // Load column widths from localStorage on mount and when categoryId changes
   useEffect(() => {
-    const storageKey = `contacts-column-widths-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-phase2-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (typeof parsed === 'object' && parsed !== null) {
-          setColumnWidths({ ...PHASE1_DEFAULT_WIDTHS, ...parsed });
+          setColumnWidths({ ...PHASE2_DEFAULT_WIDTHS, ...parsed });
           return;
         }
-      } catch (e) {
-        // Invalid JSON, use default
-      }
+      } catch (e) {}
     }
-    setColumnWidths(PHASE1_DEFAULT_WIDTHS);
+    setColumnWidths(PHASE2_DEFAULT_WIDTHS);
   }, [categoryId]);
 
-  // Save column widths to localStorage whenever they change
   useEffect(() => {
-    const storageKey = `contacts-column-widths-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-phase2-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnWidths));
   }, [columnWidths, categoryId]);
 
-  const [draggedColumn, setDraggedColumn] = useState<Phase1ColumnKey | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<Phase1ColumnKey | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<Phase2ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<Phase2ColumnKey | null>(null);
 
-  // Fetch email template
   useEffect(() => {
     const fetchTemplate = async () => {
       const { data } = await supabase
@@ -185,7 +191,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   }, []);
 
   const handleResizeStart = useCallback(
-    (key: keyof Phase1ColumnWidths) => (e: React.MouseEvent) => {
+    (key: keyof Phase2ColumnWidths) => (e: React.MouseEvent) => {
       e.preventDefault();
       startWidthRef.current = columnWidths[key];
       const startX = e.clientX;
@@ -213,14 +219,13 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     [columnWidths]
   );
 
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, columnKey: Phase1ColumnKey) => {
+  const handleDragStart = (e: React.DragEvent, columnKey: Phase2ColumnKey) => {
     setDraggedColumn(columnKey);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", columnKey);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnKey: Phase1ColumnKey) => {
+  const handleDragOver = (e: React.DragEvent, columnKey: Phase2ColumnKey) => {
     e.preventDefault();
     if (draggedColumn && draggedColumn !== columnKey) {
       setDragOverColumn(columnKey);
@@ -231,7 +236,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetColumn: Phase1ColumnKey) => {
+  const handleDrop = (e: React.DragEvent, targetColumn: Phase2ColumnKey) => {
     e.preventDefault();
     if (!draggedColumn || draggedColumn === targetColumn) {
       setDraggedColumn(null);
@@ -271,7 +276,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
       .from("contacts")
       .select("*")
       .eq("category_id", categoryId)
-      .eq("current_phase", 1) // Only fetch Phase 1 contacts
+      .eq("current_phase", 2)
       .order("created_at", { ascending: true });
 
     if (!error && data) {
@@ -280,31 +285,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     setLoading(false);
   };
 
-
-  const handleAddNew = async () => {
-    const { data, error } = await supabase
-      .from("contacts")
-      .insert({
-        category_id: categoryId,
-        business_name: "",
-        sales_stage: "Lead",
-        assigned_to: userName || null,
-        contact_count: 0,
-        current_phase: 1,
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      setContacts([...contacts, data]);
-      setNewRowId(data.id);
-      startEditing(data.id, "business_name", "");
-    } else {
-      toast.error("Failed to add contact");
-    }
-  };
-
-  // Ref to track pending saves for debounce
   const pendingSaveRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
   const handleUpdate = useCallback(async (id: string, field: string, value: string | number, immediate = false) => {
@@ -318,63 +298,35 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     } else {
       updateValue = typeof value === "string" ? (value.trim() || null) : value;
     }
-
-    // Check if this is a sales_stage change to "Demo Stage" - auto move to Phase 2
-    const isMovingToPhase2 = field === "sales_stage" && value === "Demo Stage";
     
-    // If moving to Phase 2, remove from local contacts list (it will appear in Phase 2 table)
-    if (isMovingToPhase2) {
-      setContacts(prev => prev.filter(c => c.id !== id));
-    } else {
-      // Optimistic update - update UI immediately
-      setContacts(prev =>
-        prev.map((c) =>
-          c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
-        )
-      );
-    }
+    setContacts(prev =>
+      prev.map((c) =>
+        c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
+      )
+    );
 
     const saveKey = `${id}-${field}`;
     
-    // Clear any pending save for this field
     if (pendingSaveRef.current[saveKey]) {
       clearTimeout(pendingSaveRef.current[saveKey]);
     }
 
     const performSave = async () => {
-      const updateData: Record<string, any> = { 
-        [field]: updateValue, 
-        updated_at: new Date().toISOString() 
-      };
-      
-      // If moving to Demo Stage, also update current_phase to 2
-      if (isMovingToPhase2) {
-        updateData.current_phase = 2;
-      }
-
       const { error } = await supabase
         .from("contacts")
-        .update(updateData)
+        .update({ [field]: updateValue, updated_at: new Date().toISOString() })
         .eq("id", id);
 
       if (error) {
         console.error("Failed to save:", error);
         toast.error("Failed to save changes");
-        // Revert the optimistic update if save failed
-        if (isMovingToPhase2) {
-          fetchContacts();
-        }
-      } else if (isMovingToPhase2) {
-        toast.success("Contact moved to Phase 2");
       }
       delete pendingSaveRef.current[saveKey];
     };
 
     if (immediate) {
-      // Save immediately (on blur or enter)
       await performSave();
     } else {
-      // Debounce save (while typing) - 500ms delay
       pendingSaveRef.current[saveKey] = setTimeout(performSave, 500);
     }
   }, []);
@@ -396,34 +348,23 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   };
 
   const handleBlur = (id: string, field: string) => {
-    handleUpdate(id, field, editValue, true); // immediate save on blur
+    handleUpdate(id, field, editValue, true);
     setEditingCell(null);
-
-    if (newRowId === id && !editValue.trim() && field === "business_name") {
-      const contact = contacts.find((c) => c.id === id);
-      if (contact && !contact.business_name && !contact.email && !contact.mobile_number) {
-        handleDelete(id);
-      }
-    }
-    setNewRowId(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === "Enter") {
-      handleUpdate(id, field, editValue, true); // immediate save on enter
+      handleUpdate(id, field, editValue, true);
       setEditingCell(null);
-      setNewRowId(null);
     }
     if (e.key === "Escape") {
       setEditingCell(null);
-      setNewRowId(null);
     }
   };
 
-  // Auto-save while typing (debounced)
   const handleInputChange = (id: string, field: string, value: string) => {
     setEditValue(value);
-    handleUpdate(id, field, value, false); // debounced save
+    handleUpdate(id, field, value, false);
   };
 
   const openGmailCompose = async (email: string, contactId: string) => {
@@ -470,7 +411,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     }
   };
 
-  // Handle increment attempts count
   const handleIncrementAttempts = async (contactId: string) => {
     const contact = contacts.find(c => c.id === contactId);
     if (!contact) return;
@@ -479,7 +419,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     await handleUpdate(contactId, "contact_count", newCount, true);
   };
 
-  // Handle set last update to current date/time
   const handleSetLastUpdate = async (contactId: string) => {
     const now = new Date().toISOString();
     const { error } = await supabase
@@ -507,12 +446,25 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     return format(new Date(date), "MMM d, yyyy h:mm a");
   };
 
+  // Phase 2 sales stage options (no Lead, no Approached)
+  const phase2SalesStages = [
+    "Request Demo",
+    "Demo Created",
+    "Decision Pending",
+    "Approved",
+    "Undecided",
+    "Rejected",
+  ];
+
   const salesStageColors: Record<string, string> = {
-    Lead: "bg-slate-100 text-slate-700 border-slate-300",
-    Approached: "bg-blue-100 text-blue-700 border-blue-300",
+    "Request Demo": "bg-amber-100 text-amber-700 border-amber-300",
+    "Demo Created": "bg-blue-100 text-blue-700 border-blue-300",
+    "Decision Pending": "bg-yellow-100 text-yellow-700 border-yellow-300",
+    "Approved": "bg-green-100 text-green-700 border-green-300",
+    "Undecided": "bg-orange-100 text-orange-700 border-orange-300",
+    "Rejected": "bg-red-100 text-red-700 border-red-300",
+    // Keep old ones for backwards compatibility
     "Demo Stage": "bg-purple-100 text-purple-700 border-purple-300",
-    "Closed Won": "bg-green-100 text-green-700 border-green-300",
-    "Closed Lost": "bg-gray-100 text-gray-700 border-gray-300",
   };
 
   const leadSourceColors: Record<string, string> = {
@@ -522,7 +474,6 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     "Ads": "bg-orange-100 text-orange-700 border-orange-300",
   };
 
-  // Duplicate detection for business_name, link, email, mobile
   const findDuplicates = (field: "business_name" | "link" | "email" | "mobile_number", contactId: string, value: string | null) => {
     if (!value || !value.trim()) return [];
     const normalizedValue = value.trim().toLowerCase();
@@ -552,7 +503,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
     );
   };
 
-  const ResizeHandle = ({ columnKey }: { columnKey: keyof Phase1ColumnWidths }) => (
+  const ResizeHandle = ({ columnKey }: { columnKey: keyof Phase2ColumnWidths }) => (
     <div
       className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary active:bg-primary transition-colors z-10"
       onMouseDown={handleResizeStart(columnKey)}
@@ -563,8 +514,50 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
 
   const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
 
-  // Render column cell content
-  const renderCell = (contact: Contact, columnKey: Phase1ColumnKey, isLast: boolean) => {
+  // Handle sales stage change with Request Demo dialog
+  const handleSalesStageChange = async (contactId: string, newStage: string) => {
+    if (newStage === "Request Demo") {
+      const contact = contacts.find(c => c.id === contactId);
+      if (contact) {
+        setDemoInstructions(contact.demo_instructions || "");
+        setRequestDemoDialog({ open: true, contact });
+      }
+    } else {
+      await handleUpdate(contactId, "sales_stage", newStage, true);
+    }
+  };
+
+  // Save demo instructions and update sales stage
+  const handleSaveDemoInstructions = async () => {
+    if (!requestDemoDialog.contact) return;
+    
+    const { error } = await supabase
+      .from("contacts")
+      .update({ 
+        sales_stage: "Request Demo",
+        demo_instructions: demoInstructions,
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", requestDemoDialog.contact.id);
+
+    if (!error) {
+      setContacts(
+        contacts.map((c) =>
+          c.id === requestDemoDialog.contact!.id 
+            ? { ...c, sales_stage: "Request Demo", demo_instructions: demoInstructions, updated_at: new Date().toISOString() } 
+            : c
+        )
+      );
+      toast.success("Demo request saved");
+    } else {
+      toast.error("Failed to save demo request");
+    }
+    
+    setRequestDemoDialog({ open: false, contact: null });
+    setDemoInstructions("");
+  };
+
+  const renderCell = (contact: Contact, columnKey: Phase2ColumnKey, isLast: boolean) => {
     const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
     const style = isLast 
       ? { minWidth: columnWidths[columnKey] } 
@@ -593,6 +586,23 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                   {contact.assigned_to || <span className="text-muted-foreground/50 text-sm">Empty</span>}
                 </span>
               )}
+              {/* Eye button for Lead Source */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLeadSourceDialog({ open: true, contact });
+                    }}
+                    className="p-1 hover:bg-muted rounded transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-primary" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">View Lead Source</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
         );
@@ -803,40 +813,12 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
         );
       }
 
-      case "lead_source":
-        return (
-          <div className={baseClass} style={style}>
-            <Select
-              value={contact.lead_source || ""}
-              onValueChange={(value) => handleUpdate(contact.id, "lead_source", value, true)}
-            >
-              <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
-                <SelectValue placeholder="Select...">
-                  {contact.lead_source ? (
-                    <span className={`${leadSourceColors[contact.lead_source] || "bg-gray-100 text-gray-700"} px-2 py-0.5 rounded text-xs font-medium`}>
-                      {contact.lead_source}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground/50 text-xs">Select...</span>
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Cold Call" className="text-sm">Cold Call</SelectItem>
-                <SelectItem value="Messenger" className="text-sm">Messenger</SelectItem>
-                <SelectItem value="Referral" className="text-sm">Referral</SelectItem>
-                <SelectItem value="Ads" className="text-sm">Ads</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        );
-
       case "sales_stage":
         return (
           <div className={baseClass} style={style}>
             <Select
               value={contact.sales_stage}
-              onValueChange={(value) => handleUpdate(contact.id, "sales_stage", value, true)}
+              onValueChange={(value) => handleSalesStageChange(contact.id, value)}
             >
               <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
                 <SelectValue>
@@ -846,9 +828,9 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
-                <SelectItem value="Approached" className="text-sm">Approached</SelectItem>
-                <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
+                {phase2SalesStages.map((stage) => (
+                  <SelectItem key={stage} value={stage} className="text-sm">{stage}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -934,71 +916,139 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
   }
 
   return (
-    <div className="w-full overflow-x-auto scrollbar-hide border border-border rounded-lg">
-      {/* Header */}
-      <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
-        {columnOrder.map((columnKey, index) => {
-          const isLast = index === columnOrder.length - 1;
-          return (
-            <div
-              key={columnKey}
-              draggable
-              onDragStart={(e) => handleDragStart(e, columnKey)}
-              onDragOver={(e) => handleDragOver(e, columnKey)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, columnKey)}
-              onDragEnd={handleDragEnd}
-              className={cn(
-                "relative px-3 py-2 font-medium cursor-grab active:cursor-grabbing select-none",
-                isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0",
-                draggedColumn === columnKey && "opacity-50",
-                dragOverColumn === columnKey && "bg-primary/10"
-              )}
-              style={isLast ? { minWidth: columnWidths[columnKey] } : { width: columnWidths[columnKey] }}
-            >
-              <div className="flex items-center gap-1">
-                <GripVertical className="w-3 h-3 text-muted-foreground/50" />
-                {PHASE1_COLUMN_LABELS[columnKey]}
-              </div>
-              <ResizeHandle columnKey={columnKey} />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Rows */}
-      {contacts.map((contact) => (
-        <div
-          key={contact.id}
-          className="flex border-b border-border hover:bg-muted/30 group"
-        >
+    <>
+      <div className="w-full overflow-x-auto scrollbar-hide border border-border rounded-lg">
+        {/* Header */}
+        <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
           {columnOrder.map((columnKey, index) => {
             const isLast = index === columnOrder.length - 1;
             return (
-              <div key={columnKey} className="contents">
-                {renderCell(contact, columnKey, isLast)}
+              <div
+                key={columnKey}
+                draggable
+                onDragStart={(e) => handleDragStart(e, columnKey)}
+                onDragOver={(e) => handleDragOver(e, columnKey)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, columnKey)}
+                onDragEnd={handleDragEnd}
+                className={cn(
+                  "relative px-3 py-2 font-medium cursor-grab active:cursor-grabbing select-none",
+                  isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0",
+                  draggedColumn === columnKey && "opacity-50",
+                  dragOverColumn === columnKey && "bg-primary/10"
+                )}
+                style={isLast ? { minWidth: columnWidths[columnKey] } : { width: columnWidths[columnKey] }}
+              >
+                <div className="flex items-center gap-1">
+                  <GripVertical className="w-3 h-3 text-muted-foreground/50" />
+                  {PHASE2_COLUMN_LABELS[columnKey]}
+                </div>
+                <ResizeHandle columnKey={columnKey} />
               </div>
             );
           })}
-          <button
-            onClick={() => handleDelete(contact.id)}
-            className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-          </button>
         </div>
-      ))}
 
-      {/* Add New Row Button */}
-      <button
-        onClick={handleAddNew}
-        className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors text-sm"
-      >
-        <Plus className="w-4 h-4" />
-        <span>New</span>
-      </button>
-    </div>
+        {/* Rows */}
+        {contacts.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            No contacts in Phase 2 yet. Move contacts from Phase 1 by selecting "Demo Stage".
+          </div>
+        ) : (
+          contacts.map((contact) => (
+            <div
+              key={contact.id}
+              className="flex border-b border-border hover:bg-muted/30 group"
+            >
+              {columnOrder.map((columnKey, index) => {
+                const isLast = index === columnOrder.length - 1;
+                return (
+                  <div key={columnKey} className="contents">
+                    {renderCell(contact, columnKey, isLast)}
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => handleDelete(contact.id)}
+                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-destructive" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Lead Source Dialog */}
+      <Dialog open={leadSourceDialog.open} onOpenChange={(open) => setLeadSourceDialog({ open, contact: open ? leadSourceDialog.contact : null })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lead Source</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {leadSourceDialog.contact && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Business: {leadSourceDialog.contact.business_name || "Unnamed"}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Lead Source:</span>
+                    {leadSourceDialog.contact.lead_source ? (
+                      <span className={`${leadSourceColors[leadSourceDialog.contact.lead_source] || "bg-gray-100 text-gray-700"} px-3 py-1 rounded text-sm font-medium`}>
+                        {leadSourceDialog.contact.lead_source}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Not set</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Demo Dialog */}
+      <Dialog open={requestDemoDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setRequestDemoDialog({ open: false, contact: null });
+          setDemoInstructions("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Request Demo - Instructions for Web Developer</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {requestDemoDialog.contact && (
+              <p className="text-sm text-muted-foreground">
+                Business: {requestDemoDialog.contact.business_name || "Unnamed"}
+              </p>
+            )}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Demo Instructions / Notes</label>
+              <Textarea
+                value={demoInstructions}
+                onChange={(e) => setDemoInstructions(e.target.value)}
+                placeholder="Enter instructions for the web developer who will create the demo website..."
+                className="min-h-[150px]"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                setRequestDemoDialog({ open: false, contact: null });
+                setDemoInstructions("");
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveDemoInstructions}>
+                Save & Set Request Demo
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
-export default ContactsTable;
+export default Phase2ContactsTable;
