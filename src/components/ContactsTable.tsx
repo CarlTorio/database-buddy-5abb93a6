@@ -13,16 +13,26 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  getSalesStagesForPhase,
+  getPhaseTransition,
+  salesStageColors,
+  leadSourceColors,
+  Phase,
+} from "@/lib/salesStageConfig";
+import DemoRequestDialog from "./DemoRequestDialog";
+import RejectionReasonDialog from "./RejectionReasonDialog";
+import PaymentConfirmationDialog from "./PaymentConfirmationDialog";
+import LeadSourcePopover from "./LeadSourcePopover";
 
-interface EmailTemplate {
-  subject: string;
-  body: string;
-}
-
-// Phase 1 columns
+// Column types - Phase 2 hides lead_source by default
 type Phase1ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "lead_source" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes";
+type Phase2ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes" | "lead_source_action";
+type Phase3ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "lead_source" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes";
 
-interface Phase1ColumnWidths {
+type ColumnKey = Phase1ColumnKey | Phase2ColumnKey | Phase3ColumnKey;
+
+interface ColumnWidths {
   assigned_to: number;
   business_name: number;
   contact_name: number;
@@ -34,9 +44,10 @@ interface Phase1ColumnWidths {
   contact_count: number;
   last_contacted_at: number;
   notes: number;
+  lead_source_action: number;
 }
 
-const PHASE1_DEFAULT_WIDTHS: Phase1ColumnWidths = {
+const DEFAULT_WIDTHS: ColumnWidths = {
   assigned_to: 100,
   business_name: 150,
   contact_name: 130,
@@ -44,13 +55,14 @@ const PHASE1_DEFAULT_WIDTHS: Phase1ColumnWidths = {
   email: 150,
   link: 140,
   lead_source: 110,
-  sales_stage: 120,
+  sales_stage: 130,
   contact_count: 80,
   last_contacted_at: 140,
   notes: 180,
+  lead_source_action: 50,
 };
 
-const PHASE1_COLUMN_LABELS: Record<Phase1ColumnKey, string> = {
+const COLUMN_LABELS: Record<string, string> = {
   assigned_to: "Assigned",
   business_name: "Business Name",
   contact_name: "Contact Name",
@@ -62,9 +74,38 @@ const PHASE1_COLUMN_LABELS: Record<Phase1ColumnKey, string> = {
   contact_count: "# of Attempts",
   last_contacted_at: "Last Update",
   notes: "Notes",
+  lead_source_action: "👁️",
 };
 
-const PHASE1_DEFAULT_COLUMN_ORDER: Phase1ColumnKey[] = [
+const PHASE1_COLUMN_ORDER: Phase1ColumnKey[] = [
+  "assigned_to",
+  "business_name",
+  "contact_name",
+  "mobile_number",
+  "email",
+  "link",
+  "lead_source",
+  "sales_stage",
+  "contact_count",
+  "last_contacted_at",
+  "notes",
+];
+
+const PHASE2_COLUMN_ORDER: Phase2ColumnKey[] = [
+  "assigned_to",
+  "business_name",
+  "contact_name",
+  "mobile_number",
+  "email",
+  "link",
+  "sales_stage",
+  "contact_count",
+  "last_contacted_at",
+  "notes",
+  "lead_source_action",
+];
+
+const PHASE3_COLUMN_ORDER: Phase3ColumnKey[] = [
   "assigned_to",
   "business_name",
   "contact_name",
@@ -97,16 +138,20 @@ interface Contact {
   lead_source: string | null;
   priority_level: string | null;
   follow_up_at: string | null;
+  demo_instructions?: string | null;
+  current_phase: number;
   created_at: string;
   updated_at: string;
 }
 
+interface EmailTemplate {
+  subject: string;
+  body: string;
+}
+
 interface ContactsTableProps {
   categoryId: string;
-  isAdding?: boolean;
-  onAddingChange?: (isAdding: boolean) => void;
-  phase?: "lead" | "presentation" | "conversion";
-  title?: string;
+  phase: Phase;
 }
 
 const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
@@ -117,61 +162,97 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   const [editValue, setEditValue] = useState("");
   const [newRowId, setNewRowId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [columnWidths, setColumnWidths] = useState<Phase1ColumnWidths>(PHASE1_DEFAULT_WIDTHS);
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
   const startWidthRef = useRef<number>(0);
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
-  const [columnOrder, setColumnOrder] = useState<Phase1ColumnKey[]>(PHASE1_DEFAULT_COLUMN_ORDER);
+  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(getColumnOrderForPhase(phase));
 
-  // Load column order from localStorage on mount and when categoryId changes
+  // Dialog states
+  const [demoRequestContact, setDemoRequestContact] = useState<Contact | null>(null);
+  const [rejectionContact, setRejectionContact] = useState<Contact | null>(null);
+  const [paymentContact, setPaymentContact] = useState<Contact | null>(null);
+
+  // Drag and drop state
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+
+  // Pending saves ref for debounce
+  const pendingSaveRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+
+  function getColumnOrderForPhase(p: Phase): ColumnKey[] {
+    switch (p) {
+      case "lead": return [...PHASE1_COLUMN_ORDER];
+      case "presentation": return [...PHASE2_COLUMN_ORDER];
+      case "conversion": return [...PHASE3_COLUMN_ORDER];
+      default: return [...PHASE1_COLUMN_ORDER];
+    }
+  }
+
+  function getPhaseNumber(p: Phase): number {
+    switch (p) {
+      case "lead": return 1;
+      case "presentation": return 2;
+      case "conversion": return 3;
+      default: return 1;
+    }
+  }
+
+  function getDefaultStageForPhase(p: Phase): string {
+    switch (p) {
+      case "lead": return "Lead";
+      case "presentation": return "Request Demo";
+      case "conversion": return "Negotiating";
+      default: return "Lead";
+    }
+  }
+
+  // Update column order when phase changes
   useEffect(() => {
-    const storageKey = `contacts-column-order-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-${phase}-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === PHASE1_DEFAULT_COLUMN_ORDER.length) {
-          setColumnOrder(parsed as Phase1ColumnKey[]);
+        if (Array.isArray(parsed)) {
+          setColumnOrder(parsed as ColumnKey[]);
           return;
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
-    setColumnOrder(PHASE1_DEFAULT_COLUMN_ORDER);
-  }, [categoryId]);
+    setColumnOrder(getColumnOrderForPhase(phase));
+  }, [categoryId, phase]);
 
-  // Save column order to localStorage whenever it changes
+  // Save column order to localStorage
   useEffect(() => {
-    const storageKey = `contacts-column-order-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-order-${phase}-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnOrder));
-  }, [columnOrder, categoryId]);
+  }, [columnOrder, categoryId, phase]);
 
-  // Load column widths from localStorage on mount and when categoryId changes
+  // Load column widths from localStorage
   useEffect(() => {
-    const storageKey = `contacts-column-widths-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-${phase}-${categoryId || 'default'}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (typeof parsed === 'object' && parsed !== null) {
-          setColumnWidths({ ...PHASE1_DEFAULT_WIDTHS, ...parsed });
+          setColumnWidths({ ...DEFAULT_WIDTHS, ...parsed });
           return;
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
-    setColumnWidths(PHASE1_DEFAULT_WIDTHS);
-  }, [categoryId]);
+    setColumnWidths(DEFAULT_WIDTHS);
+  }, [categoryId, phase]);
 
-  // Save column widths to localStorage whenever they change
+  // Save column widths to localStorage
   useEffect(() => {
-    const storageKey = `contacts-column-widths-phase1-${categoryId || 'default'}`;
+    const storageKey = `contacts-column-widths-${phase}-${categoryId || 'default'}`;
     localStorage.setItem(storageKey, JSON.stringify(columnWidths));
-  }, [columnWidths, categoryId]);
-
-  const [draggedColumn, setDraggedColumn] = useState<Phase1ColumnKey | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<Phase1ColumnKey | null>(null);
+  }, [columnWidths, categoryId, phase]);
 
   // Fetch email template
   useEffect(() => {
@@ -188,8 +269,39 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     fetchTemplate();
   }, []);
 
+  // Fetch contacts for this phase
+  useEffect(() => {
+    fetchContacts();
+  }, [categoryId, phase]);
+
+  // Focus input when editing
+  useEffect(() => {
+    if (editingCell && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editingCell]);
+
+  const fetchContacts = async () => {
+    const phaseNumber = getPhaseNumber(phase);
+    const { data, error } = await supabase
+      .from("contacts")
+      .select("*")
+      .eq("category_id", categoryId)
+      .eq("current_phase", phaseNumber)
+      .order("created_at", { ascending: true });
+
+    if (!error && data) {
+      // Filter out archived stages
+      const activeContacts = data.filter((c: Contact) => 
+        !['Not Interested', 'Rejected', 'Closed Lost', 'Completed'].includes(c.sales_stage)
+      );
+      setContacts(activeContacts);
+    }
+    setLoading(false);
+  };
+
   const handleResizeStart = useCallback(
-    (key: keyof Phase1ColumnWidths) => (e: React.MouseEvent) => {
+    (key: keyof ColumnWidths) => (e: React.MouseEvent) => {
       e.preventDefault();
       startWidthRef.current = columnWidths[key];
       const startX = e.clientX;
@@ -218,13 +330,13 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   );
 
   // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, columnKey: Phase1ColumnKey) => {
+  const handleDragStart = (e: React.DragEvent, columnKey: ColumnKey) => {
     setDraggedColumn(columnKey);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", columnKey);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnKey: Phase1ColumnKey) => {
+  const handleDragOver = (e: React.DragEvent, columnKey: ColumnKey) => {
     e.preventDefault();
     if (draggedColumn && draggedColumn !== columnKey) {
       setDragOverColumn(columnKey);
@@ -235,7 +347,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetColumn: Phase1ColumnKey) => {
+  const handleDrop = (e: React.DragEvent, targetColumn: ColumnKey) => {
     e.preventDefault();
     if (!draggedColumn || draggedColumn === targetColumn) {
       setDraggedColumn(null);
@@ -247,10 +359,12 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     const draggedIndex = newOrder.indexOf(draggedColumn);
     const targetIndex = newOrder.indexOf(targetColumn);
 
-    newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedColumn);
-
-    setColumnOrder(newOrder);
+    if (draggedIndex !== -1 && targetIndex !== -1) {
+      newOrder.splice(draggedIndex, 1);
+      newOrder.splice(targetIndex, 0, draggedColumn);
+      setColumnOrder(newOrder);
+    }
+    
     setDraggedColumn(null);
     setDragOverColumn(null);
   };
@@ -259,71 +373,6 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     setDraggedColumn(null);
     setDragOverColumn(null);
   };
-
-  useEffect(() => {
-    fetchContacts();
-  }, [categoryId]);
-
-  useEffect(() => {
-    if (editingCell && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [editingCell]);
-
-  const fetchContacts = async () => {
-    const { data, error } = await supabase
-      .from("contacts")
-      .select("*")
-      .eq("category_id", categoryId)
-      .order("created_at", { ascending: true });
-
-    if (!error && data) {
-      // Filter by phase if specified
-      if (phase) {
-        const phaseFiltered = data.filter((c: any) => c.sales_stage === getPhaseStatus(phase));
-        setContacts(phaseFiltered);
-      } else {
-        setContacts(data);
-      }
-    }
-    setLoading(false);
-  };
-
-  const getPhaseStatus = (p: string) => {
-    switch (p) {
-      case "lead": return "Lead";
-      case "presentation": return "Demo Stage";
-      case "conversion": return "Closed Won";
-      default: return "Lead";
-    }
-  };
-
-  const handleAddNew = async () => {
-    const defaultStatus = phase ? getPhaseStatus(phase) : "Lead";
-    
-    const { data, error } = await supabase
-      .from("contacts")
-      .insert({
-        category_id: categoryId,
-        business_name: "",
-        sales_stage: defaultStatus,
-        assigned_to: userName || null,
-        contact_count: 0,
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      setContacts([...contacts, data]);
-      setNewRowId(data.id);
-      startEditing(data.id, "business_name", "");
-    } else {
-      toast.error("Failed to add contact");
-    }
-  };
-
-  // Ref to track pending saves for debounce
-  const pendingSaveRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
   const handleUpdate = useCallback(async (id: string, field: string, value: string | number, immediate = false) => {
     let updateValue: string | number | null;
@@ -337,7 +386,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
       updateValue = typeof value === "string" ? (value.trim() || null) : value;
     }
     
-    // Optimistic update - update UI immediately
+    // Optimistic update
     setContacts(prev =>
       prev.map((c) =>
         c.id === id ? { ...c, [field]: updateValue, updated_at: new Date().toISOString() } : c
@@ -346,7 +395,6 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
 
     const saveKey = `${id}-${field}`;
     
-    // Clear any pending save for this field
     if (pendingSaveRef.current[saveKey]) {
       clearTimeout(pendingSaveRef.current[saveKey]);
     }
@@ -365,13 +413,179 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     };
 
     if (immediate) {
-      // Save immediately (on blur or enter)
       await performSave();
     } else {
-      // Debounce save (while typing) - 500ms delay
       pendingSaveRef.current[saveKey] = setTimeout(performSave, 500);
     }
   }, []);
+
+  // Handle sales stage change with phase transitions
+  const handleSalesStageChange = async (contact: Contact, newStage: string) => {
+    // Check for special stage triggers
+    if (newStage === "Request Demo" && phase === "presentation") {
+      // Open demo request dialog
+      setDemoRequestContact(contact);
+      return;
+    }
+
+    if (newStage === "Rejected" && phase === "presentation") {
+      // Open rejection reason dialog first
+      setRejectionContact(contact);
+      return;
+    }
+
+    if (newStage === "Closed Won" && phase === "conversion") {
+      // Open payment confirmation dialog
+      setPaymentContact(contact);
+      return;
+    }
+
+    // Check for phase transition
+    const transition = getPhaseTransition(newStage);
+    
+    if (transition) {
+      // Move to new phase
+      const { targetPhase, newStage: transitionStage } = transition;
+      
+      const { error } = await supabase
+        .from("contacts")
+        .update({
+          sales_stage: transitionStage,
+          current_phase: targetPhase,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contact.id);
+
+      if (!error) {
+        // Remove from current list
+        setContacts(prev => prev.filter(c => c.id !== contact.id));
+        toast.success(`Client moved to Phase ${targetPhase}: ${targetPhase === 2 ? 'Presentation' : 'Conversion'}`);
+      } else {
+        toast.error("Failed to move client");
+      }
+      return;
+    }
+
+    // Normal stage update
+    await handleUpdate(contact.id, "sales_stage", newStage, true);
+  };
+
+  // Demo request dialog save handler
+  const handleDemoRequestSave = async (instructions: string, assignedDeveloper: string) => {
+    if (!demoRequestContact) return;
+
+    const { error } = await supabase
+      .from("contacts")
+      .update({
+        sales_stage: "Request Demo",
+        demo_instructions: instructions,
+        assigned_to: assignedDeveloper,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", demoRequestContact.id);
+
+    if (!error) {
+      setContacts(prev =>
+        prev.map(c =>
+          c.id === demoRequestContact.id
+            ? { ...c, sales_stage: "Request Demo", demo_instructions: instructions, assigned_to: assignedDeveloper, updated_at: new Date().toISOString() }
+            : c
+        )
+      );
+      toast.success("Demo request sent to developer");
+    } else {
+      toast.error("Failed to save demo request");
+    }
+    setDemoRequestContact(null);
+  };
+
+  // Rejection reason save handler
+  const handleRejectionSave = async (reason: string) => {
+    if (!rejectionContact) return;
+
+    const existingNotes = rejectionContact.notes || "";
+    const newNotes = existingNotes 
+      ? `${existingNotes}\n\n[REJECTION REASON]: ${reason}`
+      : `[REJECTION REASON]: ${reason}`;
+
+    const { error } = await supabase
+      .from("contacts")
+      .update({
+        sales_stage: "Rejected",
+        notes: newNotes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", rejectionContact.id);
+
+    if (!error) {
+      // Remove from active list (archived)
+      setContacts(prev => prev.filter(c => c.id !== rejectionContact.id));
+      toast.success("Contact archived as rejected");
+    } else {
+      toast.error("Failed to save rejection");
+    }
+    setRejectionContact(null);
+  };
+
+  // Payment confirmation save handler
+  const handlePaymentSave = async (amount: number) => {
+    if (!paymentContact) return;
+
+    const existingNotes = paymentContact.notes || "";
+    const newNotes = existingNotes 
+      ? `${existingNotes}\n\n[PAYMENT RECEIVED]: ₱${amount.toLocaleString()}`
+      : `[PAYMENT RECEIVED]: ₱${amount.toLocaleString()}`;
+
+    const { error } = await supabase
+      .from("contacts")
+      .update({
+        sales_stage: "Closed Won",
+        value: amount,
+        notes: newNotes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", paymentContact.id);
+
+    if (!error) {
+      setContacts(prev =>
+        prev.map(c =>
+          c.id === paymentContact.id
+            ? { ...c, sales_stage: "Closed Won", value: amount, notes: newNotes, updated_at: new Date().toISOString() }
+            : c
+        )
+      );
+      toast.success("Payment confirmed! 🎉");
+    } else {
+      toast.error("Failed to save payment");
+    }
+    setPaymentContact(null);
+  };
+
+  const handleAddNew = async () => {
+    const phaseNumber = getPhaseNumber(phase);
+    const defaultStage = getDefaultStageForPhase(phase);
+    
+    const { data, error } = await supabase
+      .from("contacts")
+      .insert({
+        category_id: categoryId,
+        business_name: "",
+        sales_stage: defaultStage,
+        current_phase: phaseNumber,
+        assigned_to: userName || null,
+        contact_count: 0,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setContacts([...contacts, data]);
+      setNewRowId(data.id);
+      startEditing(data.id, "business_name", "");
+    } else {
+      toast.error("Failed to add contact");
+    }
+  };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("contacts").delete().eq("id", id);
@@ -390,7 +604,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   };
 
   const handleBlur = (id: string, field: string) => {
-    handleUpdate(id, field, editValue, true); // immediate save on blur
+    handleUpdate(id, field, editValue, true);
     setEditingCell(null);
 
     if (newRowId === id && !editValue.trim() && field === "business_name") {
@@ -404,7 +618,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
 
   const handleKeyDown = (e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === "Enter") {
-      handleUpdate(id, field, editValue, true); // immediate save on enter
+      handleUpdate(id, field, editValue, true);
       setEditingCell(null);
       setNewRowId(null);
     }
@@ -414,10 +628,9 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     }
   };
 
-  // Auto-save while typing (debounced)
   const handleInputChange = (id: string, field: string, value: string) => {
     setEditValue(value);
-    handleUpdate(id, field, value, false); // debounced save
+    handleUpdate(id, field, value, false);
   };
 
   const openGmailCompose = async (email: string, contactId: string) => {
@@ -464,7 +677,6 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     }
   };
 
-  // Handle increment attempts count
   const handleIncrementAttempts = async (contactId: string) => {
     const contact = contacts.find(c => c.id === contactId);
     if (!contact) return;
@@ -473,7 +685,6 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     await handleUpdate(contactId, "contact_count", newCount, true);
   };
 
-  // Handle set last update to current date/time
   const handleSetLastUpdate = async (contactId: string) => {
     const now = new Date().toISOString();
     const { error } = await supabase
@@ -501,22 +712,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     return format(new Date(date), "MMM d, yyyy h:mm a");
   };
 
-  const salesStageColors: Record<string, string> = {
-    Lead: "bg-slate-100 text-slate-700 border-slate-300",
-    Approached: "bg-blue-100 text-blue-700 border-blue-300",
-    "Demo Stage": "bg-purple-100 text-purple-700 border-purple-300",
-    "Closed Won": "bg-green-100 text-green-700 border-green-300",
-    "Closed Lost": "bg-gray-100 text-gray-700 border-gray-300",
-  };
-
-  const leadSourceColors: Record<string, string> = {
-    "Cold Call": "bg-blue-100 text-blue-700 border-blue-300",
-    "Messenger": "bg-indigo-100 text-indigo-700 border-indigo-300",
-    "Referral": "bg-green-100 text-green-700 border-green-300",
-    "Ads": "bg-orange-100 text-orange-700 border-orange-300",
-  };
-
-  // Duplicate detection for business_name, link, email, mobile
+  // Duplicate detection
   const findDuplicates = (field: "business_name" | "link" | "email" | "mobile_number", contactId: string, value: string | null) => {
     if (!value || !value.trim()) return [];
     const normalizedValue = value.trim().toLowerCase();
@@ -546,7 +742,7 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
     );
   };
 
-  const ResizeHandle = ({ columnKey }: { columnKey: keyof Phase1ColumnWidths }) => (
+  const ResizeHandle = ({ columnKey }: { columnKey: keyof ColumnWidths }) => (
     <div
       className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary active:bg-primary transition-colors z-10"
       onMouseDown={handleResizeStart(columnKey)}
@@ -558,11 +754,14 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
 
   // Render column cell content
-  const renderCell = (contact: Contact, columnKey: Phase1ColumnKey, isLast: boolean) => {
+  const renderCell = (contact: Contact, columnKey: ColumnKey, isLast: boolean) => {
     const baseClass = isLast ? "flex items-start flex-1" : "border-r border-border shrink-0";
+    const widthKey = columnKey as keyof ColumnWidths;
     const style = isLast 
-      ? { minWidth: columnWidths[columnKey] } 
-      : { width: columnWidths[columnKey] };
+      ? { minWidth: columnWidths[widthKey] || 100 } 
+      : { width: columnWidths[widthKey] || 100 };
+
+    const salesStages = getSalesStagesForPhase(phase);
 
     switch (columnKey) {
       case "assigned_to":
@@ -825,12 +1024,22 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
           </div>
         );
 
+      case "lead_source_action":
+        // Eye icon for Phase 2 to view lead source
+        return (
+          <div className={baseClass} style={style}>
+            <div className="flex items-center justify-center w-full h-full">
+              <LeadSourcePopover leadSource={contact.lead_source} />
+            </div>
+          </div>
+        );
+
       case "sales_stage":
         return (
           <div className={baseClass} style={style}>
             <Select
               value={contact.sales_stage}
-              onValueChange={(value) => handleUpdate(contact.id, "sales_stage", value, true)}
+              onValueChange={(value) => handleSalesStageChange(contact, value)}
             >
               <SelectTrigger className="h-full border-0 rounded-none focus:ring-1 focus:ring-primary text-sm">
                 <SelectValue>
@@ -840,9 +1049,13 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
-                <SelectItem value="Approached" className="text-sm">Approached</SelectItem>
-                <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
+                {salesStages.map((stage) => (
+                  <SelectItem key={stage} value={stage} className="text-sm">
+                    <span className={`${salesStageColors[stage] || "bg-gray-100 text-gray-700"} px-2 py-0.5 rounded text-xs font-medium`}>
+                      {stage}
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -928,70 +1141,97 @@ const ContactsTable = ({ categoryId, phase }: ContactsTableProps) => {
   }
 
   return (
-    <div className="w-full overflow-x-auto scrollbar-hide border border-border rounded-lg">
-      {/* Header */}
-      <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
-        {columnOrder.map((columnKey, index) => {
-          const isLast = index === columnOrder.length - 1;
-          return (
-            <div
-              key={columnKey}
-              draggable
-              onDragStart={(e) => handleDragStart(e, columnKey)}
-              onDragOver={(e) => handleDragOver(e, columnKey)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, columnKey)}
-              onDragEnd={handleDragEnd}
-              className={cn(
-                "relative px-3 py-2 font-medium cursor-grab active:cursor-grabbing select-none",
-                isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0",
-                draggedColumn === columnKey && "opacity-50",
-                dragOverColumn === columnKey && "bg-primary/10"
-              )}
-              style={isLast ? { minWidth: columnWidths[columnKey] } : { width: columnWidths[columnKey] }}
-            >
-              <div className="flex items-center gap-1">
-                <GripVertical className="w-3 h-3 text-muted-foreground/50" />
-                {PHASE1_COLUMN_LABELS[columnKey]}
-              </div>
-              <ResizeHandle columnKey={columnKey} />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Rows */}
-      {contacts.map((contact) => (
-        <div
-          key={contact.id}
-          className="flex border-b border-border hover:bg-muted/30 group"
-        >
+    <>
+      <div className="w-full overflow-x-auto scrollbar-hide border border-border rounded-lg">
+        {/* Header */}
+        <div className="flex border-b border-border text-sm text-muted-foreground bg-slate-800">
           {columnOrder.map((columnKey, index) => {
             const isLast = index === columnOrder.length - 1;
+            const widthKey = columnKey as keyof ColumnWidths;
             return (
-              <div key={columnKey} className="contents">
-                {renderCell(contact, columnKey, isLast)}
+              <div
+                key={columnKey}
+                draggable
+                onDragStart={(e) => handleDragStart(e, columnKey)}
+                onDragOver={(e) => handleDragOver(e, columnKey)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, columnKey)}
+                onDragEnd={handleDragEnd}
+                className={cn(
+                  "relative px-3 py-2 font-medium cursor-grab active:cursor-grabbing select-none",
+                  isLast ? "flex-1 min-w-[150px]" : "border-r border-border shrink-0",
+                  draggedColumn === columnKey && "opacity-50",
+                  dragOverColumn === columnKey && "bg-primary/10"
+                )}
+                style={isLast ? { minWidth: columnWidths[widthKey] || 100 } : { width: columnWidths[widthKey] || 100 }}
+              >
+                <div className="flex items-center gap-1">
+                  <GripVertical className="w-3 h-3 text-muted-foreground/50" />
+                  {COLUMN_LABELS[columnKey] || columnKey}
+                </div>
+                <ResizeHandle columnKey={widthKey} />
               </div>
             );
           })}
-          <button
-            onClick={() => handleDelete(contact.id)}
-            className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-          </button>
         </div>
-      ))}
 
-      {/* Add New Row Button */}
-      <button
-        onClick={handleAddNew}
-        className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors text-sm"
-      >
-        <Plus className="w-4 h-4" />
-        <span>New</span>
-      </button>
-    </div>
+        {/* Rows */}
+        {contacts.map((contact) => (
+          <div
+            key={contact.id}
+            className="flex border-b border-border hover:bg-muted/30 group"
+          >
+            {columnOrder.map((columnKey, index) => {
+              const isLast = index === columnOrder.length - 1;
+              return (
+                <div key={columnKey} className="contents">
+                  {renderCell(contact, columnKey, isLast)}
+                </div>
+              );
+            })}
+            <button
+              onClick={() => handleDelete(contact.id)}
+              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </button>
+          </div>
+        ))}
+
+        {/* Add New Row Button */}
+        <button
+          onClick={handleAddNew}
+          className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors text-sm"
+        >
+          <Plus className="w-4 h-4" />
+          <span>New</span>
+        </button>
+      </div>
+
+      {/* Dialogs */}
+      <DemoRequestDialog
+        isOpen={!!demoRequestContact}
+        onClose={() => setDemoRequestContact(null)}
+        onSave={handleDemoRequestSave}
+        businessName={demoRequestContact?.business_name || ""}
+        currentInstructions={demoRequestContact?.demo_instructions || ""}
+        currentAssigned={demoRequestContact?.assigned_to || ""}
+      />
+
+      <RejectionReasonDialog
+        isOpen={!!rejectionContact}
+        onClose={() => setRejectionContact(null)}
+        onSave={handleRejectionSave}
+        businessName={rejectionContact?.business_name || ""}
+      />
+
+      <PaymentConfirmationDialog
+        isOpen={!!paymentContact}
+        onClose={() => setPaymentContact(null)}
+        onSave={handlePaymentSave}
+        businessName={paymentContact?.business_name || ""}
+      />
+    </>
   );
 };
 
