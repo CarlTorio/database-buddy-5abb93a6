@@ -11,7 +11,6 @@ import EmailTemplateDialog from "@/components/EmailTemplateDialog";
 import CompletedClientsDialog from "@/components/CompletedClientsDialog";
 import RejectedClientsDialog from "@/components/RejectedClientsDialog";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 interface Category {
   id: string;
   name: string;
@@ -108,7 +107,6 @@ const CRM = () => {
             </div>
           </div>
         </main>
-        <Footer />
       </div>;
   }
   return <div className="min-h-screen bg-background flex flex-col">
@@ -169,7 +167,6 @@ const CRM = () => {
             </div>}
         </div>
       </main>
-      <Footer />
     </div>;
 };
 export default CRM;
