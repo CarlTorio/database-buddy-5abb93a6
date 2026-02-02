@@ -86,7 +86,7 @@ const CRM = () => {
             
             {/* Phase 1: Lead Stage */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 1: Lead Stage</h2>
+              <h2 className="text-3xl font-bold text-center text-foreground mb-4">Phase 1: Lead Stage</h2>
               <ContactsTable categoryId={selectedCategory.id} onContactMovedToPhase2={handlePhase2Refresh} />
             </div>
 
@@ -98,7 +98,7 @@ const CRM = () => {
 
             {/* Phase 3: Conversion */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 3: Conversion</h2>
+              <h2 className="text-3xl font-bold text-center text-foreground mb-4">Phase 3: Conversion</h2>
               <Phase3ContactsTable key={phase3RefreshKey} categoryId={selectedCategory.id} />
             </div>
           </div>
