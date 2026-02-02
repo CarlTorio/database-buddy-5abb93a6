@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import ContactsTable from "@/components/ContactsTable";
 import Phase2ContactsTable from "@/components/Phase2ContactsTable";
+import Phase3ContactsTable from "@/components/Phase3ContactsTable";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
 
 import Navbar from "@/components/Navbar";
@@ -24,9 +25,14 @@ const CRM = () => {
   const [loading, setLoading] = useState(true);
   const [isAddingContact, setIsAddingContact] = useState(false);
   const [phase2RefreshKey, setPhase2RefreshKey] = useState(0);
+  const [phase3RefreshKey, setPhase3RefreshKey] = useState(0);
 
   const handlePhase2Refresh = () => {
     setPhase2RefreshKey(prev => prev + 1);
+  };
+
+  const handlePhase3Refresh = () => {
+    setPhase3RefreshKey(prev => prev + 1);
   };
 
   useEffect(() => {
@@ -109,15 +115,17 @@ const CRM = () => {
               <Phase2ContactsTable
                 key={phase2RefreshKey}
                 categoryId={selectedCategory.id}
+                onContactMovedToPhase3={handlePhase3Refresh}
               />
             </div>
 
             {/* Phase 3: Conversion */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 3: Conversion</h2>
-              <div className="text-center text-muted-foreground py-8 border border-border rounded-lg">
-                Coming soon - Conversion stage for approved contacts
-              </div>
+              <Phase3ContactsTable
+                key={phase3RefreshKey}
+                categoryId={selectedCategory.id}
+              />
             </div>
           </div>
         </main>
