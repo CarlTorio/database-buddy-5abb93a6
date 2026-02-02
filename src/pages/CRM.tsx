@@ -9,6 +9,7 @@ import Phase2ContactsTable from "@/components/Phase2ContactsTable";
 import Phase3ContactsTable from "@/components/Phase3ContactsTable";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
 import CompletedClientsDialog from "@/components/CompletedClientsDialog";
+import RejectedClientsDialog from "@/components/RejectedClientsDialog";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 interface Category {
@@ -81,7 +82,7 @@ const CRM = () => {
               </Button>
               <div className="flex gap-2">
                 <CompletedClientsDialog categoryId={selectedCategory.id} />
-                <EmailTemplateDialog />
+                <RejectedClientsDialog categoryId={selectedCategory.id} />
               </div>
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-8">

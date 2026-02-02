@@ -280,6 +280,7 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
       .select("*")
       .eq("category_id", categoryId)
       .eq("current_phase", 1) // Only fetch Phase 1 contacts
+      .neq("sales_stage", "Rejected") // Exclude rejected contacts
       .order("created_at", { ascending: true });
 
     if (!error && data) {
@@ -329,9 +330,11 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
 
     // Check if this is a sales_stage change to "Demo Stage" - auto move to Phase 2
     const isMovingToPhase2 = field === "sales_stage" && value === "Demo Stage";
+    // Check if this is a sales_stage change to "Rejected" - remove from list
+    const isRejected = field === "sales_stage" && value === "Rejected";
     
-    // If moving to Phase 2, remove from local contacts list (it will appear in Phase 2 table)
-    if (isMovingToPhase2) {
+    // If moving to Phase 2 or rejected, remove from local contacts list
+    if (isMovingToPhase2 || isRejected) {
       setContacts(prev => prev.filter(c => c.id !== id));
     } else {
       // Optimistic update - update UI immediately
@@ -369,12 +372,14 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
         console.error("Failed to save:", error);
         toast.error("Failed to save changes");
         // Revert the optimistic update if save failed
-        if (isMovingToPhase2) {
+        if (isMovingToPhase2 || isRejected) {
           fetchContacts();
         }
       } else if (isMovingToPhase2) {
         toast.success("Contact moved to Phase 2");
         onContactMovedToPhase2?.();
+      } else if (isRejected) {
+        toast.success("Contact marked as rejected");
       }
       delete pendingSaveRef.current[saveKey];
     };
@@ -515,6 +520,7 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
     "Demo Stage": "bg-purple-100 text-purple-700 border-purple-300",
     "Closed Won": "bg-green-100 text-green-700 border-green-300",
     "Closed Lost": "bg-gray-100 text-gray-700 border-gray-300",
+    "Rejected": "bg-red-100 text-red-700 border-red-300",
   };
 
   const leadSourceColors: Record<string, string> = {
@@ -851,6 +857,7 @@ const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProp
                 <SelectItem value="Lead" className="text-sm">Lead</SelectItem>
                 <SelectItem value="Approached" className="text-sm">Approached</SelectItem>
                 <SelectItem value="Demo Stage" className="text-sm">Demo Stage</SelectItem>
+                <SelectItem value="Rejected" className="text-sm">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
