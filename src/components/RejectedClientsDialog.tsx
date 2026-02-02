@@ -8,10 +8,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { XCircle, Phone, Mail, ExternalLink, User, Building2, Trash2 } from "lucide-react";
+import { XCircle, Phone, Mail, ExternalLink, User, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
 
 interface RejectedClient {
   id: string;
@@ -61,16 +60,6 @@ const RejectedClientsDialog = ({ categoryId }: RejectedClientsDialogProps) => {
       setClients(data);
     }
     setLoading(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("contacts").delete().eq("id", id);
-    if (!error) {
-      setClients(clients.filter((c) => c.id !== id));
-      toast.success("Contact deleted");
-    } else {
-      toast.error("Failed to delete contact");
-    }
   };
 
   const getPhaseLabel = (phase: number) => {
@@ -123,23 +112,13 @@ const RejectedClientsDialog = ({ categoryId }: RejectedClientsDialogProps) => {
                         {client.business_name || "Unnamed Business"}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded">
-                          {getPhaseLabel(client.current_phase)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(client.updated_at), "MMM d, yyyy")}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(client.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded">
+                        {getPhaseLabel(client.current_phase)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(client.updated_at), "MMM d, yyyy")}
+                      </span>
                     </div>
                   </div>
 
