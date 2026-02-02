@@ -56,6 +56,7 @@ CREATE TABLE public.contacts (
     email TEXT,
     link TEXT,
     demo_link TEXT,
+    output_link TEXT,
     lead_source TEXT,
     sales_stage TEXT NOT NULL DEFAULT 'Lead',
     contact_count INTEGER NOT NULL DEFAULT 0,
@@ -216,10 +217,14 @@ ON CONFLICT DO NOTHING;
 --   5. user_emails - Email accounts with credits tracking system
 --
 -- Key Features:
---   - Two-phase sales pipeline (Phase 1: Lead Stage, Phase 2: Demo Stage)
+--   - Three-phase sales pipeline:
+--     * Phase 1: Lead Stage (Lead, Contacted, Follow-up, No Answer, Interested, Not Interested)
+--     * Phase 2: Demo Stage (Demo Scheduled, Demo Completed, Demo Approved)
+--     * Phase 3: Conversion Stage (Deposit Paid, Fully Paid, Complete)
 --   - Contact tracking with attempt counts and last contacted timestamps
 --   - Demo instructions for web developers
---   - Negotiation pricing for approved deals
+--   - Output link for final delivered links
+--   - Deal value/price tracking for approved deals
 --   - Email templates for standardized outreach
 --   - Credits system for email accounts
 --

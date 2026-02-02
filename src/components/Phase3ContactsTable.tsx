@@ -1,25 +1,37 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { FileText, Trash2, ExternalLink, Mail, Phone, GripVertical, AlertTriangle, User, Eye, DollarSign } from "lucide-react";
+import { FileText, Trash2, ExternalLink, Mail, Phone, GripVertical, AlertTriangle, User, Eye, DollarSign, Send, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface EmailTemplate {
   subject: string;
   body: string;
 }
 
-// Phase 3 columns - no contact_count and last_contacted_at in main view (moved to eye button)
-type Phase3ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "demo_link" | "value" | "notes";
+// Phase 3 sales stages
+const PHASE3_SALES_STAGES = ["Deposit Paid", "Fully Paid", "Complete"] as const;
+type Phase3SalesStage = typeof PHASE3_SALES_STAGES[number];
+
+// Phase 3 columns - includes sales_stage and output_link
+type Phase3ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "demo_link" | "output_link" | "sales_stage" | "value" | "notes";
 
 interface Phase3ColumnWidths {
   assigned_to: number;
@@ -29,6 +41,8 @@ interface Phase3ColumnWidths {
   email: number;
   link: number;
   demo_link: number;
+  output_link: number;
+  sales_stage: number;
   value: number;
   notes: number;
 }
@@ -41,6 +55,8 @@ const PHASE3_DEFAULT_WIDTHS: Phase3ColumnWidths = {
   email: 150,
   link: 140,
   demo_link: 140,
+  output_link: 140,
+  sales_stage: 130,
   value: 120,
   notes: 180,
 };
@@ -53,6 +69,8 @@ const PHASE3_COLUMN_LABELS: Record<Phase3ColumnKey, string> = {
   email: "Email",
   link: "Link",
   demo_link: "Demo Link",
+  output_link: "Output",
+  sales_stage: "Sales Stage",
   value: "Price",
   notes: "Notes",
 };
@@ -65,6 +83,8 @@ const PHASE3_DEFAULT_COLUMN_ORDER: Phase3ColumnKey[] = [
   "email",
   "link",
   "demo_link",
+  "output_link",
+  "sales_stage",
   "value",
   "notes",
 ];
@@ -83,6 +103,7 @@ interface Contact {
   sales_stage: string;
   link?: string | null;
   demo_link?: string | null;
+  output_link?: string | null;
   notes: string | null;
   last_contacted_at: string | null;
   contact_count: number;
@@ -113,6 +134,9 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
 
   // Details dialog for # of attempts and last update
   const [detailsDialog, setDetailsDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
+
+  // Send to web developer dialog
+  const [sendToDevDialog, setSendToDevDialog] = useState<{ open: boolean; contact: Contact | null }>({ open: false, contact: null });
 
   // Load column order from localStorage
   useEffect(() => {
@@ -366,6 +390,34 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
 
   const handlePhoneCall = async (phone: string) => {
     window.open(`tel:${phone}`, "_self");
+  };
+
+  const handleSendToWebDeveloper = (contact: Contact) => {
+    // Prepare the information to send
+    const info = `
+Web Development Request
+
+Business: ${contact.business_name || "N/A"}
+Contact Name: ${contact.contact_name || "N/A"}
+Email: ${contact.email || "N/A"}
+Phone: ${contact.mobile_number || "N/A"}
+Link: ${contact.link || "N/A"}
+Demo Link: ${contact.demo_link || "N/A"}
+Output Link: ${contact.output_link || "N/A"}
+Deal Price: ${contact.value ? `₱${contact.value.toLocaleString()}` : "N/A"}
+Sales Stage: ${contact.sales_stage || "N/A"}
+Notes: ${contact.notes || "N/A"}
+Demo Instructions: ${contact.demo_instructions || "N/A"}
+    `.trim();
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(info).then(() => {
+      toast.success("Information copied to clipboard!");
+    }).catch(() => {
+      toast.error("Failed to copy information");
+    });
+    
+    setSendToDevDialog({ open: false, contact: null });
   };
 
   const formatLastContacted = (date: string | null) => {
@@ -715,6 +767,82 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
           </div>
         );
 
+      case "output_link":
+        return (
+          <div className={baseClass} style={style}>
+            {editingCell?.id === contact.id && editingCell?.field === "output_link" ? (
+              <Input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => handleInputChange(contact.id, "output_link", e.target.value)}
+                onBlur={() => handleBlur(contact.id, "output_link")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "output_link")}
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
+              />
+            ) : (
+              <div className="px-3 py-1 min-h-[32px] flex items-center gap-2 text-sm w-full">
+                {contact.output_link ? (
+                  <>
+                    <span
+                      className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 truncate"
+                      onClick={() => startEditing(contact.id, "output_link", contact.output_link || null)}
+                    >
+                      {contact.output_link}
+                    </span>
+                    <ExternalLink
+                      className="w-4 h-4 text-muted-foreground shrink-0 cursor-pointer hover:text-primary transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        let url = contact.output_link!;
+                        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                          url = "https://" + url;
+                        }
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      }}
+                    />
+                  </>
+                ) : (
+                  <span
+                    className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
+                    onClick={() => startEditing(contact.id, "output_link", contact.output_link || null)}
+                  >
+                    Empty
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+
+      case "sales_stage":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="px-2 py-1 min-h-[32px] flex items-center text-sm w-full">
+              <Select
+                value={contact.sales_stage}
+                onValueChange={(value) => handleUpdate(contact.id, "sales_stage", value, true)}
+              >
+                <SelectTrigger className="h-7 border-0 bg-transparent hover:bg-muted/50 focus:ring-1 focus:ring-primary text-sm">
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHASE3_SALES_STAGES.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      <span className={
+                        stage === "Deposit Paid" ? "text-amber-600" :
+                        stage === "Fully Paid" ? "text-blue-600" :
+                        stage === "Complete" ? "text-emerald-600" : ""
+                      }>
+                        {stage}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+
       case "value":
         return (
           <div className={baseClass} style={style}>
@@ -829,6 +957,20 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
                   </div>
                 );
               })}
+              {/* Send to Web Developer button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setSendToDevDialog({ open: true, contact })}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-primary/10 rounded transition-opacity shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5 text-primary" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">Send to Web Developer</p>
+                </TooltipContent>
+              </Tooltip>
               <button
                 onClick={() => handleDelete(contact.id)}
                 className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-opacity shrink-0"
@@ -876,11 +1018,63 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
 
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Deal Price:</span>
-                      <span className="text-sm font-medium text-green-600">
+                      <span className="text-sm font-medium text-emerald-600">
                         {detailsDialog.contact.value ? `₱${detailsDialog.contact.value.toLocaleString()}` : "Not set"}
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send to Web Developer Dialog */}
+      <Dialog open={sendToDevDialog.open} onOpenChange={(open) => setSendToDevDialog({ open, contact: open ? sendToDevDialog.contact : null })}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Send to Web Developer</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {sendToDevDialog.contact && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Send the following information to the web developer:
+                </p>
+                
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+                  <div><span className="font-medium">Business:</span> {sendToDevDialog.contact.business_name || "N/A"}</div>
+                  <div><span className="font-medium">Contact:</span> {sendToDevDialog.contact.contact_name || "N/A"}</div>
+                  <div><span className="font-medium">Email:</span> {sendToDevDialog.contact.email || "N/A"}</div>
+                  <div><span className="font-medium">Phone:</span> {sendToDevDialog.contact.mobile_number || "N/A"}</div>
+                  <div><span className="font-medium">Link:</span> {sendToDevDialog.contact.link || "N/A"}</div>
+                  <div><span className="font-medium">Demo Link:</span> {sendToDevDialog.contact.demo_link || "N/A"}</div>
+                  <div><span className="font-medium">Output Link:</span> {sendToDevDialog.contact.output_link || "N/A"}</div>
+                  <div><span className="font-medium">Deal Price:</span> {sendToDevDialog.contact.value ? `₱${sendToDevDialog.contact.value.toLocaleString()}` : "N/A"}</div>
+                  <div><span className="font-medium">Sales Stage:</span> {sendToDevDialog.contact.sales_stage || "N/A"}</div>
+                  {sendToDevDialog.contact.demo_instructions && (
+                    <div><span className="font-medium">Demo Instructions:</span> {sendToDevDialog.contact.demo_instructions}</div>
+                  )}
+                  {sendToDevDialog.contact.notes && (
+                    <div><span className="font-medium">Notes:</span> {sendToDevDialog.contact.notes}</div>
+                  )}
+                </div>
+                
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSendToDevDialog({ open: false, contact: null })}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleSendToWebDeveloper(sendToDevDialog.contact!)}
+                    className="gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    Copy to Clipboard
+                  </Button>
                 </div>
               </div>
             )}
