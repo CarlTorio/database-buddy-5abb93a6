@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import ContactsTable from "@/components/ContactsTable";
+import Phase2ContactsTable from "@/components/Phase2ContactsTable";
 import EmailTemplateDialog from "@/components/EmailTemplateDialog";
 
 import Navbar from "@/components/Navbar";
@@ -93,26 +94,23 @@ const CRM = () => {
               <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 1: Lead Stage</h2>
               <ContactsTable
                 categoryId={selectedCategory.id}
-                phase="lead"
               />
             </div>
 
             {/* Phase 2: Presentation */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 2: Presentation</h2>
-              <ContactsTable
+              <Phase2ContactsTable
                 categoryId={selectedCategory.id}
-                phase="presentation"
               />
             </div>
 
             {/* Phase 3: Conversion */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 3: Conversion</h2>
-              <ContactsTable
-                categoryId={selectedCategory.id}
-                phase="conversion"
-              />
+              <div className="text-center text-muted-foreground py-8 border border-border rounded-lg">
+                Coming soon - Conversion stage for approved contacts
+              </div>
             </div>
           </div>
         </main>
