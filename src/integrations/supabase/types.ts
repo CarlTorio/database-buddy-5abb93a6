@@ -51,6 +51,7 @@ export type Database = {
           link: string | null
           mobile_number: string | null
           notes: string | null
+          output_link: string | null
           priority_level: string | null
           sales_stage: string
           updated_at: string
@@ -74,6 +75,7 @@ export type Database = {
           link?: string | null
           mobile_number?: string | null
           notes?: string | null
+          output_link?: string | null
           priority_level?: string | null
           sales_stage?: string
           updated_at?: string
@@ -97,6 +99,7 @@ export type Database = {
           link?: string | null
           mobile_number?: string | null
           notes?: string | null
+          output_link?: string | null
           priority_level?: string | null
           sales_stage?: string
           updated_at?: string
