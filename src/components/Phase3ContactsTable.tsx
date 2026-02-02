@@ -30,8 +30,8 @@ interface EmailTemplate {
 const PHASE3_SALES_STAGES = ["Deposit Paid", "Fully Paid", "Complete"] as const;
 type Phase3SalesStage = typeof PHASE3_SALES_STAGES[number];
 
-// Phase 3 columns - includes sales_stage and output_link
-type Phase3ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "demo_link" | "output_link" | "sales_stage" | "value" | "notes";
+// Phase 3 columns - includes sales_stage, deposit, and output_link
+type Phase3ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "demo_link" | "output_link" | "sales_stage" | "deposit" | "value" | "notes";
 
 interface Phase3ColumnWidths {
   assigned_to: number;
@@ -43,6 +43,7 @@ interface Phase3ColumnWidths {
   demo_link: number;
   output_link: number;
   sales_stage: number;
+  deposit: number;
   value: number;
   notes: number;
 }
@@ -57,6 +58,7 @@ const PHASE3_DEFAULT_WIDTHS: Phase3ColumnWidths = {
   demo_link: 140,
   output_link: 140,
   sales_stage: 130,
+  deposit: 120,
   value: 120,
   notes: 180,
 };
@@ -71,6 +73,7 @@ const PHASE3_COLUMN_LABELS: Record<Phase3ColumnKey, string> = {
   demo_link: "Demo Link",
   output_link: "Output",
   sales_stage: "Sales Stage",
+  deposit: "Deposit",
   value: "Price",
   notes: "Notes",
 };
@@ -85,6 +88,7 @@ const PHASE3_DEFAULT_COLUMN_ORDER: Phase3ColumnKey[] = [
   "demo_link",
   "output_link",
   "sales_stage",
+  "deposit",
   "value",
   "notes",
 ];
@@ -100,6 +104,7 @@ interface Contact {
   email: string | null;
   mobile_number: string | null;
   value: number | null;
+  deposit: number | null;
   sales_stage: string;
   link?: string | null;
   demo_link?: string | null;
@@ -302,7 +307,7 @@ const Phase3ContactsTable = ({ categoryId }: Phase3ContactsTableProps) => {
     
     if (field === "contact_count") {
       updateValue = typeof value === "number" ? value : parseInt(value as string) || 0;
-    } else if (field === "value") {
+    } else if (field === "value" || field === "deposit") {
       const numValue = parseFloat(String(value).replace(/[^\d.]/g, ""));
       updateValue = isNaN(numValue) ? null : numValue;
     } else {
@@ -404,6 +409,7 @@ Phone: ${contact.mobile_number || "N/A"}
 Link: ${contact.link || "N/A"}
 Demo Link: ${contact.demo_link || "N/A"}
 Output Link: ${contact.output_link || "N/A"}
+Deposit: ${contact.deposit ? `₱${contact.deposit.toLocaleString()}` : "N/A"}
 Deal Price: ${contact.value ? `₱${contact.value.toLocaleString()}` : "N/A"}
 Sales Stage: ${contact.sales_stage || "N/A"}
 Notes: ${contact.notes || "N/A"}
@@ -839,6 +845,33 @@ Demo Instructions: ${contact.demo_instructions || "N/A"}
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+        );
+
+      case "deposit":
+        return (
+          <div className={baseClass} style={style}>
+            <div className="flex items-center gap-2 px-2 py-1.5 w-full">
+              <DollarSign className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              {editingCell?.id === contact.id && editingCell?.field === "deposit" ? (
+                <Input
+                  ref={inputRef}
+                  value={editValue}
+                  onChange={(e) => handleInputChange(contact.id, "deposit", e.target.value)}
+                  onBlur={() => handleBlur(contact.id, "deposit")}
+                  onKeyDown={(e) => handleKeyDown(e, contact.id, "deposit")}
+                  className="h-6 px-1 py-0 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary text-sm"
+                  placeholder="0"
+                />
+              ) : (
+                <span
+                  className="cursor-text flex-1 min-h-[24px] flex items-center hover:bg-muted/50 rounded px-1 text-sm truncate font-medium text-amber-600"
+                  onClick={() => startEditing(contact.id, "deposit", contact.deposit?.toString() || "")}
+                >
+                  {contact.deposit ? `₱${contact.deposit.toLocaleString()}` : <span className="text-muted-foreground/50 font-normal">Empty</span>}
+                </span>
+              )}
             </div>
           </div>
         );
