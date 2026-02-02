@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      compensation_entries: {
+        Row: {
+          created_at: string
+          date_completed: string
+          developer_name: string | null
+          expenses: number
+          id: string
+          notes: string | null
+          total_paid: number
+          updated_at: string
+          website_name: string
+        }
+        Insert: {
+          created_at?: string
+          date_completed?: string
+          developer_name?: string | null
+          expenses?: number
+          id?: string
+          notes?: string | null
+          total_paid?: number
+          updated_at?: string
+          website_name: string
+        }
+        Update: {
+          created_at?: string
+          date_completed?: string
+          developer_name?: string | null
+          expenses?: number
+          id?: string
+          notes?: string | null
+          total_paid?: number
+          updated_at?: string
+          website_name?: string
+        }
+        Relationships: []
+      }
+      compensation_sales_splits: {
+        Row: {
+          compensation_entry_id: string
+          created_at: string
+          id: string
+          sales_agent_name: string
+          share_amount: number
+        }
+        Insert: {
+          compensation_entry_id: string
+          created_at?: string
+          id?: string
+          sales_agent_name: string
+          share_amount?: number
+        }
+        Update: {
+          compensation_entry_id?: string
+          created_at?: string
+          id?: string
+          sales_agent_name?: string
+          share_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compensation_sales_splits_compensation_entry_id_fkey"
+            columns: ["compensation_entry_id"]
+            isOneToOne: false
+            referencedRelation: "compensation_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_categories: {
         Row: {
           created_at: string
@@ -118,6 +186,53 @@ export type Database = {
           },
         ]
       }
+      developer_projects: {
+        Row: {
+          business_name: string
+          category_id: string
+          created_at: string
+          email_used: string | null
+          github_link: string | null
+          id: string
+          lovable_link: string | null
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_name: string
+          category_id: string
+          created_at?: string
+          email_used?: string | null
+          github_link?: string | null
+          id?: string
+          lovable_link?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string
+          category_id?: string
+          created_at?: string
+          email_used?: string | null
+          github_link?: string | null
+          id?: string
+          lovable_link?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "developer_projects_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "contact_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_templates: {
         Row: {
           body: string
@@ -141,6 +256,33 @@ export type Database = {
           id?: string
           name?: string
           subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sticky_notes: {
+        Row: {
+          color: string | null
+          content: string
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string | null
           updated_at?: string
         }
         Relationships: []
