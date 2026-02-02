@@ -28,7 +28,7 @@ interface EmailTemplate {
 }
 
 // Phase 2 columns (no lead_source in main view, has eye button instead)
-type Phase2ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "sales_stage" | "contact_count" | "last_contacted_at" | "notes";
+type Phase2ColumnKey = "assigned_to" | "business_name" | "contact_name" | "mobile_number" | "email" | "link" | "sales_stage" | "demo_link" | "contact_count" | "last_contacted_at" | "notes";
 
 interface Phase2ColumnWidths {
   assigned_to: number;
@@ -38,6 +38,7 @@ interface Phase2ColumnWidths {
   email: number;
   link: number;
   sales_stage: number;
+  demo_link: number;
   contact_count: number;
   last_contacted_at: number;
   notes: number;
@@ -51,6 +52,7 @@ const PHASE2_DEFAULT_WIDTHS: Phase2ColumnWidths = {
   email: 150,
   link: 140,
   sales_stage: 140,
+  demo_link: 140,
   contact_count: 80,
   last_contacted_at: 140,
   notes: 180,
@@ -64,6 +66,7 @@ const PHASE2_COLUMN_LABELS: Record<Phase2ColumnKey, string> = {
   email: "Email",
   link: "Link",
   sales_stage: "Sales Stage",
+  demo_link: "Demo Link",
   contact_count: "# of Attempts",
   last_contacted_at: "Last Update",
   notes: "Notes",
@@ -77,6 +80,7 @@ const PHASE2_DEFAULT_COLUMN_ORDER: Phase2ColumnKey[] = [
   "email",
   "link",
   "sales_stage",
+  "demo_link",
   "contact_count",
   "last_contacted_at",
   "notes",
@@ -95,6 +99,7 @@ interface Contact {
   value: number | null;
   sales_stage: string;
   link?: string | null;
+  demo_link?: string | null;
   notes: string | null;
   last_contacted_at: string | null;
   contact_count: number;
@@ -137,14 +142,20 @@ const Phase2ContactsTable = ({ categoryId }: Phase2ContactsTableProps) => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === PHASE2_DEFAULT_COLUMN_ORDER.length) {
-          setColumnOrder(parsed as Phase2ColumnKey[]);
-          return;
+        if (Array.isArray(parsed)) {
+          // Check if all default columns are present in saved order
+          const allColumnsPresent = PHASE2_DEFAULT_COLUMN_ORDER.every(col => parsed.includes(col));
+          if (allColumnsPresent && parsed.length === PHASE2_DEFAULT_COLUMN_ORDER.length) {
+            setColumnOrder(parsed as Phase2ColumnKey[]);
+            return;
+          }
         }
       } catch (e) {
         // Invalid JSON, use default
       }
     }
+    // Clear outdated saved order and use default
+    localStorage.removeItem(storageKey);
     setColumnOrder(PHASE2_DEFAULT_COLUMN_ORDER);
   }, [categoryId]);
 
@@ -833,6 +844,61 @@ const Phase2ContactsTable = ({ categoryId }: Phase2ContactsTableProps) => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        );
+
+      case "demo_link":
+        return (
+          <div className={baseClass} style={style}>
+            {editingCell?.id === contact.id && editingCell?.field === "demo_link" ? (
+              <Input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => handleInputChange(contact.id, "demo_link", e.target.value)}
+                onBlur={() => handleBlur(contact.id, "demo_link")}
+                onKeyDown={(e) => handleKeyDown(e, contact.id, "demo_link")}
+                className="h-full px-3 py-1 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary rounded-none text-sm"
+                placeholder="Paste demo link..."
+              />
+            ) : (
+              <div className="px-3 py-1 min-h-[32px] flex items-center text-sm w-full">
+                {contact.demo_link ? (
+                  <div className="flex items-center gap-2 w-full">
+                    <span
+                      className="text-primary hover:underline truncate flex-1 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = contact.demo_link?.startsWith("http") ? contact.demo_link : `https://${contact.demo_link}`;
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      }}
+                    >
+                      {contact.demo_link}
+                    </span>
+                    <ExternalLink 
+                      className="w-3.5 h-3.5 text-muted-foreground shrink-0 cursor-pointer hover:text-primary" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = contact.demo_link?.startsWith("http") ? contact.demo_link : `https://${contact.demo_link}`;
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      }}
+                    />
+                    <span
+                      className="cursor-text text-muted-foreground hover:text-foreground"
+                      onClick={() => startEditing(contact.id, "demo_link", contact.demo_link)}
+                    >
+                      ✎
+                    </span>
+                  </div>
+                ) : (
+                  <span
+                    className="cursor-text flex-1 hover:bg-muted/50 rounded px-1 text-muted-foreground/50"
+                    onClick={() => startEditing(contact.id, "demo_link", contact.demo_link)}
+                  >
+                    Paste link...
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         );
 
