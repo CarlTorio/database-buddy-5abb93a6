@@ -23,6 +23,11 @@ const CRM = () => {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [loading, setLoading] = useState(true);
   const [isAddingContact, setIsAddingContact] = useState(false);
+  const [phase2RefreshKey, setPhase2RefreshKey] = useState(0);
+
+  const handlePhase2Refresh = () => {
+    setPhase2RefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     fetchCategories();
@@ -94,6 +99,7 @@ const CRM = () => {
               <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 1: Lead Stage</h2>
               <ContactsTable
                 categoryId={selectedCategory.id}
+                onContactMovedToPhase2={handlePhase2Refresh}
               />
             </div>
 
@@ -101,6 +107,7 @@ const CRM = () => {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-center text-foreground mb-4">Phase 2: Presentation</h2>
               <Phase2ContactsTable
+                key={phase2RefreshKey}
                 categoryId={selectedCategory.id}
               />
             </div>

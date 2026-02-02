@@ -103,9 +103,10 @@ interface Contact {
 
 interface ContactsTableProps {
   categoryId: string;
+  onContactMovedToPhase2?: () => void;
 }
 
-const ContactsTable = ({ categoryId }: ContactsTableProps) => {
+const ContactsTable = ({ categoryId, onContactMovedToPhase2 }: ContactsTableProps) => {
   const { userName } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -366,6 +367,7 @@ const ContactsTable = ({ categoryId }: ContactsTableProps) => {
         }
       } else if (isMovingToPhase2) {
         toast.success("Contact moved to Phase 2");
+        onContactMovedToPhase2?.();
       }
       delete pendingSaveRef.current[saveKey];
     };
